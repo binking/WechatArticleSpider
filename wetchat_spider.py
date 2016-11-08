@@ -21,9 +21,12 @@ WEBCRAWLER_DB_CONN = mdb.connect(host = "192.168.1.103", user="web", passwd="Cra
 
 
 def parse_sougou_results(keyword):
-    # Parse the Sougou search results page
-    # param keywords:list of keywords
-    # returns: {"ERR_NO": , "ERR_MSG": , "DATA": {"urls": } }
+    """
+    Given keyword, form the Sougou search url and parse the search results page
+    params keywords:list of keywords
+    return : {err_no: , err_msg: , data: 
+    	{ uri: , createdate:, search_url:, }}
+    """
     print "Sougou searching for ", keyword
     wx_article_urls = []
     try:
@@ -35,21 +38,27 @@ def parse_sougou_results(keyword):
             if "http://mp.weixin.qq.com" in a_tag.get("href", "") and a_tag.find("em"):  # the keyword was embeded in text in red color
                 wx_article_urls.append(a_tag.get("href", ""))
     except Exception as e:
+    	print "Parsed Sougou Results Failed..."
         traceback.print_exc()
         return {"err_no": FAILED, "err_msg": message, "data": {}}
-    return {"err_no": 1, "err_msg": "", "data": {"createdate": access_time, "uri": url, "search_url": url, "search_keyword": keyword, "urls": wx_article_urls}}
+    return {"err_no": 1, "err_msg": "", 
+    		"data": { "createdate": access_time, 
+    				  "uri": url, 
+    				  "search_url": url, 
+    				  "search_keyword": keyword, 
+    				  "urls": wx_article_urls}}
 
 
 def write_topic_into_db(topic_info):
     # Update two tables: wechatsearchtopic and wechatsearcharticlerelation
     # params topic_info(dict): createdate, uri, search_url, search_keyword, urls
-    deprecate_topic = "UPDATE wechatsearchtopic \
-                       SET is_up2date='N' \
-                       WHERE search_keyword='{kw}';" \
+    deprecate_topic = "UPDATE wechatsearchtopic" \
+                       "SET is_up2date='N'" \
+                       "WHERE search_keyword='{kw}';" \
                        .format(kw=topic_info.get('search_keyword', ''))
-    insert_new_topic = "INSERT INTO wechatsearchtopic \
-                       (uri, search_keyword, createdate, search_url) \
-                       VALUES ('%s', '%s', '%s', '%s');" % \
+    insert_new_topic = "INSERT INTO wechatsearchtopic" \
+                       "(uri, search_keyword, createdate, search_url)" \
+                       "VALUES ('%s', '%s', '%s', '%s');" % \
                        (topic_info.get('uri', ''), topic_info.get('search_keyword', ''), \
                        topic_info.get('createdate', ''), topic_info.get('search_url', ''))
     try:
@@ -58,36 +67,39 @@ def write_topic_into_db(topic_info):
         cursor.execute(deprecate_topic)
         cursor.execute(insert_new_topic)
         WEBCRAWLER_DB_CONN.commit()
+        print "Write topic succeeded..."
     except Exception as e:
+    	print "Write topic failed"
         traceback.print_exc()
         WEBCRAWLER_DB_CONN.rollback()
 
     
 def write_article_into_db(article_info):
     # params article_info(dict): 
-    search_url = article_info.get('search_url')
-    article_url = article_info.get('article_url')
-    deprecate_relation = "UPDATE wechatsearcharticlerelation \
-                          SET is_up2date='N' \
-                          WHERE search_url='{surl}' AND article_url='{aurl}';"
-    insert_new_relation = "INSERT INTO wechatsearcharticlerelation \
-                           (search_url, search_date, article_url) \
-                           VALUES ('{surl}', '{date}', '{aurl}');"
-    select_existed_article = "SELECT article_url FROM wechatarticle \
-                              WHERE article_url='{aurl}'"
-    insert_new_article = "INSERT INTO wechatarticle \
-                          (uri, createdate, article_url, content, read_num, thumb_up_num) \
-                          VALUES ('{uri}', '{date}', '{aurl}', '{text}', {rnum}, {tnum})"
+    search_url = article_info.get('search_url', "")
+    article_url = article_info.get('article_url', "")
+    deprecate_relation = "UPDATE wechatsearcharticlerelation" \
+                          "SET is_up2date='N' " \
+                          "WHERE search_url='{surl}' AND article_url='{aurl}';" \
+                          .format(surl=search_url, aurl=article_url)
+    insert_new_relation = "INSERT INTO wechatsearcharticlerelation" \
+                           "(search_url, search_date, article_url)" \
+                           "VALUES ('{surl}', '{date}', '{aurl}');"
+    select_existed_article = "SELECT article_url FROM wechatarticle" \
+                              "WHERE article_url='{aurl}'" \
+                              .format(aurl=article_url)
+    insert_new_article = "INSERT INTO wechatarticle" \
+                          "(uri, createdate, article_url, content, read_num, thumb_up_num)" \
+                          "VALUES ('{uri}', '{date}', '{aurl}', '{text}', {rnum}, {tnum})"
     try:
         # Soft-remove old relation and insert new relation
         cursor = WEBCRAWLER_DB_CONN.cursor()
-        cursor.execute(deprecate_relation.format(
-            surl=search_url, aurl=article_url))
+        cursor.execute(deprecate_relation)
         cursor.execute(insert_new_relation.format(
             surl=search_url,
             date=article_info.get('createdate', ''), aurl=article_url))
         # Adjust whether insert new article
-        is_existed = cursor.execute(select_existed_article.format(aurl=article_url))
+        is_existed = cursor.execute(select_existed_article)
         if not is_existed:
             # import ipdb;ipdb.set_trace()
             cursor.execute(insert_new_article.format(
@@ -99,7 +111,9 @@ def write_article_into_db(article_info):
                 tnum=article_info.get('like_num', -1)
             ))
         WEBCRAWLER_DB_CONN.commit()
+        print "Write article succeeded..."
     except Exception as e:
+    	print "Write article Failed..."
         traceback.print_exc()
         WEBCRAWLER_DB_CONN.rollback()
 
@@ -116,10 +130,11 @@ def curl_str2post_data(curl_str):
                 attr, value = tokens[i+1].split(": ")  # be careful space
                 post_data[attr] = value
     except Exception as e:
-        print "Parsed cURL error"
+        print "Parsed cURL Failed"
         traceback.print_exc()
         return '', {}
     return url, post_data
+
 
 def get_like_vote_nums(wx_url):
     print "Parsing Wetchat article: ", wx_url
@@ -150,34 +165,42 @@ def get_like_vote_nums(wx_url):
 
 
 def get_article_content(wx_url):
+	"""
+	Given a url of wechat article, parse the HTML source code and get text
+	params wx_url(str): url string
+	return content(str): long Chinese text
+	"""
     content = ""
     try:
         r = requests.get(wx_url)
         parser = bs(r.text, "html.parser")
         content_div = parser.find("div", attrs={"class":"rich_media_content"})
-        read_span = parser.find("span", attrs={"id": "sg_readNum3"})
-        praise_span = parser.find("span", attrs={"id": "sg_likeNum3"})
+        # read_span = parser.find("span", attrs={"id": "sg_readNum3"})  No read num
+        # praise_span = parser.find("span", attrs={"id": "sg_likeNum3"})  No like num
         if content_div:
             for child in content_div.children:
                 if isinstance(child, bs4.element.Tag):
                     content += child.text
     except Exception as e:
+    	print "Parsed Content Failed..."
         traceback.print_exc()
     return content
 
 
 def get_article_info(sougou_url, wx_url):
-    # Given the wetchar article url, call get_like_vote_nums() and get_article_content()
-    # param wx_url: the url of wetchat article
-    # returns: article_info(dict): {
-    # 	content, article text,
-    #   read_num, the number of read,
-    # 	like_num, the number of praise
-    # }
-    err_no = 0
+    """
+    Given the wetchar article url, call get_like_vote_nums() and get_article_content()
+    params wx_url(str): the url of wetchat article
+    return article_info(dict): {
+    	content: article text, 
+    	read_num: the number of read, 
+    	like_num: the number of praise,
+    }
+    """
+    err_no = -0
     err_msg = ""
-    article_info = {}
-    article_info['createdate'] = dt.now().strftime('%Y-%m-%d %H:%M:%S')
+    article_info = {}  # form the info dict of article
+    article_info['createdate'] = dt.now().strftime('%Y-%m-%d %H:%M:%S')  # 2016-11-07 12:23:45
     article_info['search_url'] = sougou_url
     article_info['uri'] = wx_url
     article_info['article_url'] = wx_url
@@ -195,14 +218,6 @@ def get_article_info(sougou_url, wx_url):
     return dict(err_no=err_no, err_msg=err_msg, data=article_info)
 
 
-
-def test_parse_sougou_results():
-    test_keywords = ["今天美国大选", "王宝强"]
-    for keyword in test_keywords:
-        urls = parse_sougou_results(keyword)
-        print len(urls), urls
-
-
 def test_get_article_info():
     test_url_1 = """http://mp.weixin.qq.com/s?src=3&timestamp=1478570647&ver=1&signature=KS8paN*5j4sfXIFoIJPsTcQNnt7NttrL3H2d0os6iPB9EqSymvwhtDEYIC1UFambJTwmBuNsom8r6-5LATw3B6XGcNG6BDp-Fv389JRixjYBZNWiWjpsruwKJA02nMJouDiN8CjC*oR4fc8If8YxoNRJeGDJUi1YGpfMb8VKDNA="""
     test_url_2 = """http://mp.weixin.qq.com/s?src=3&timestamp=1478570647&ver=1&signature=iSeOhDyVHhgA*iduVnOdEDhRB*erUhkmIvidSc-OdvoYdMeiVDNrT24WR90Id3PExZJD4vsPwgkSCXgvziRXmM4krD-yVq9URFPC*JeMR2dw-8Okq12aA0yKHJaUvAGbWUqEegOzcdulrFCWh02V4vA5S8tRV7m5oxV-BzveWdc="""
@@ -213,8 +228,6 @@ def test_get_article_info():
 
 
 if __name__=="__main__":
-    # test_parse_sougou_results()
-    # test_get_article_info()
     for kw in ["美国大选", "王宝强"]:
         sougou_result = parse_sougou_results(kw)
         write_topic_into_db(sougou_result['data'])
@@ -223,4 +236,3 @@ if __name__=="__main__":
             write_article_into_db(wetchat_result)
             print "This article has %d like, %d read and %d characters\n" % (wetchat_result.get('like_num', -1), wetchat_result.get('read_num', -1), len(wetchat_result.get('content', '')))
     WEBCRAWLER_DB_CONN.close()
-
