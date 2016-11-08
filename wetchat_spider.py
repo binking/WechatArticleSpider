@@ -77,7 +77,7 @@ def write_article_into_db(article_info):
                               WHERE article_url='{aurl}'"
     insert_new_article = "INSERT INTO wechatarticle \
                           (uri, createdate, article_url, content, read_num, thumb_up_num) \
-                          VALUES (uri='{uri}', createdate='{date}', article_url='{aurl}', content='{text}', read_num={rnum}, thumb_up_num={tnum})"
+                          VALUES ('{uri}', '{date}', '{aurl}', '{text}', {rnum}, {tnum})"
     try:
         # Soft-remove old relation and insert new relation
         cursor = WEBCRAWLER_DB_CONN.cursor()
@@ -89,7 +89,7 @@ def write_article_into_db(article_info):
         # Adjust whether insert new article
         is_existed = cursor.execute(select_existed_article.format(aurl=article_url))
         if not is_existed:
-            import ipdb;ipdb.set_trace()
+            # import ipdb;ipdb.set_trace()
             cursor.execute(insert_new_article.format(
                 uri=article_url,
                 aurl=article_url,
