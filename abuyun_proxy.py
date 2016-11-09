@@ -57,10 +57,10 @@ def get_current_ip():
     targetUrl = "http://proxy.abuyun.com/current-ip"
     proxy = gen_abuyun_proxy()
     try:
-    resp = requests.get(targetUrl, proxies=proxy)
-    if resp.status_code == 200:
-        ip, used_time, leaved_time = resp.text.strip().split(',')
-        proxy_info = {'ip_addr': ip, 'used_time': int(used_time), 'leaved_time': int(leaved_time)}
+        resp = requests.get(targetUrl, proxies=proxy)
+        if resp.status_code == 200:
+            ip, used_time, leaved_time = resp.text.strip().split(',')
+            proxy_info = {'ip_addr': ip, 'used_time': int(used_time), 'leaved_time': int(leaved_time)}
     except Exception as e:
         print e
     return proxy_info
