@@ -25,22 +25,24 @@ def main():
     )
     abuyun_proxy = gen_abuyun_proxy()
     print abuyun_proxy
-    for kw in read_topics_from_db(WEBCRAWLER_DB_CONN, limit=100)[18:]:
+    for kw in read_topics_from_db(WEBCRAWLER_DB_CONN):
         sougou_result = parse_sougou_results(kw)
         write_topic_into_db(WEBCRAWLER_DB_CONN, sougou_result['data'])
         for i, url in enumerate(sougou_result['data']['urls']):
-            print "%d-th " % i,
-            wetchat_result = get_article_info(sougou_result['data'].get('search_url', ), url, proxy=abuyun_proxy)
-            proxy_info = get_current_ip()
-            if wetchat_result['err_no'] == IGNORE_RECORD:
-                # ignore the article
-                continue
-            wetchat_data = wetchat_result['data']
-            write_article_into_db(WEBCRAWLER_DB_CONN, wetchat_data)
-            print "The article has %d like, %d read and %d characters\n" % (
-                wetchat_data.get('like_num', -1), 
-                wetchat_data.get('read_num', -1), 
-                len(wetchat_data.get('content', '')))
+            try:
+                print "%d-th " % i,
+                wetchat_result = get_article_info(sougou_result['data'].get('search_url', ), url, proxy=abuyun_proxy)
+                # proxy_info = get_current_ip()
+                if wetchat_result['err_no'] == IGNORE_RECORD:
+                    continue
+                wetchat_data = wetchat_result['data']
+                write_article_into_db(WEBCRAWLER_DB_CONN, wetchat_data)
+                print "The article has %d like, %d read and %d characters\n" % (
+                    wetchat_data.get('like_num', -1), 
+                    wetchat_data.get('read_num', -1), 
+                    len(wetchat_data.get('content', '')))
+            except Exception as e:
+                pass
     WEBCRAWLER_DB_CONN.close()
 
 if __name__=="__main__":
