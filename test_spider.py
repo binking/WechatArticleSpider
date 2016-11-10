@@ -40,10 +40,6 @@ def main():
                     time.sleep(5)
                     db_conn.close()
                     db_conn = connect_database()
-                print "The article has %d like, %d read and %d characters\n" % (
-                    wetchat_data.get('like_num', -1), 
-                    wetchat_data.get('read_num', -1), 
-                    len(wetchat_data.get('content', '')))
             except Exception as e:
                 print "Error in main function"
                 traceback.print_exc()
