@@ -73,7 +73,7 @@ def run_all_worker(concurrency=5):
     abuyun_proxy = gen_abuyun_proxy()
     try:
         # Producer is on !!!
-        list_of_kw = ["45任总统", "暴走大事件"]
+        list_of_kw = ["特朗普", "暴走大事件"]
         pool = MPool(concurrency)  # Processes pool
         pool.map(test_wxurl_generator, list_of_kw)  # Keep up generate keywords
         pool.close()
