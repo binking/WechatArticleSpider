@@ -83,8 +83,38 @@ def write_article_into_db(conn, article_info):
         conn.commit()
         print "Write article succeeded..."
     except (mdb.ProgrammingError, mdb.OperationalError) as e:
-        print e
-        print "Inserted article error, tried to skip content"
+        print e,message
+    except Exception as e:
+        is_succeed = 0
+        print e.message
+        print "Write article Failed..."
+        # traceback.print_exc()
+        conn.rollback()
+    finally:
+        cursor.close()
+    return is_succeed
+
+def read_topics_from_db(conn):
+    """
+    Read topics from database, return list of topics
+    """
+    topic_list = []
+    try:
+        cursor = conn.cursor()
+        cursor.execute("""
+            SELECT DISTINCT title FROM topicinfo
+        """)
+        topics = cursor.fetchall()
+        for t in topics:
+            topic_list.append(t[0])
+    except Exception as e:
+        print "Unable read topic from database.."
+        traceback.print_exc()
+    return topic_list
+
+
+"""
+print "Inserted article error, tried to skip content"
         try:
             cursor.execute(insert_new_article.format(
                     uri=article_url,
@@ -96,30 +126,4 @@ def write_article_into_db(conn, article_info):
         except Exception as e:
             is_succeed = 0
             print "Write article Failed, eventhought skip content..."
-    except Exception as e:
-        is_succeed = 0
-        print e
-        print "Write article Failed..."
-        traceback.print_exc()
-        conn.rollback()
-    finally:
-        cursor.close()
-    return is_succeed
-
-def read_topics_from_db(conn, limit=10):
-    """
-    Read topics from database, return list of topics
-    """
-    topic_list = []
-    try:
-        cursor = conn.cursor()
-        cursor.execute("""
-            SELECT DISTINCT title FROM topicinfo LIMIT %d
-        """ % limit)
-        topics = cursor.fetchall()
-        for t in topics:
-            topic_list.append(t[0])
-    except Exception as e:
-        print "Unable read topic from database.."
-        traceback.print_exc()
-    return topic_list
+"""
