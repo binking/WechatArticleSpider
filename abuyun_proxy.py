@@ -27,16 +27,17 @@ def change_tunnel():
     """
     return 正在使用的 IP 地址;该 IP 已使用时长;该 IP 可继续使用时长
     """
-    res = -1
+    proxy_info = {}
     targetUrl = "http://proxy.abuyun.com/switch-ip"
     proxy = gen_abuyun_proxy()
     try:
         resp = requests.get(targetUrl, proxies=proxy)
         if resp.status_code == 200:
-            res = 1
+            ip, used_time, leaved_time = resp.text.strip().split(',')
+            proxy_info = {'ip_addr': ip, 'used_time': int(used_time), 'leaved_time': int(leaved_time)}
     except Exception as e:
         print e
-    return res
+    return proxy_info
 
 
 def test_abuyun():

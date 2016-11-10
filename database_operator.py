@@ -1,10 +1,27 @@
 #coding=utf-8
-import sys
+import sys, time
 import MySQLdb as mdb
 import traceback
 reload(sys)
 sys.setdefaultencoding('utf-8')
 
+MYSQL_GONE_ERROR = -100
+
+def connect_database():
+    try:
+        print "Connecting database ..."
+        WEBCRAWLER_DB_CONN = mdb.connect(
+            host = "192.168.1.103", 
+            user="web", 
+            passwd="Crawler@test1", 
+            db="webcrawler",
+            charset="utf8"
+        )
+    except Exception as e:
+        print "Connecting database error."
+        traceback.print_exc()
+        return False
+    return WEBCRAWLER_DB_CONN
 
 def write_topic_into_db(conn, topic_info):
     """
@@ -28,6 +45,12 @@ def write_topic_into_db(conn, topic_info):
         cursor.execute(insert_new_topic)
         conn.commit()
         print "Write topic succeeded..."
+    except (mdb.ProgrammingError, mdb.OperationalError) as e:
+        if 'MySQL server has gone away' in e.message:
+            return MYSQL_GONE_ERROR
+        else:
+            print "Other Program or Operation Errors"
+            traceback.print_exc()
     except Exception as e:
         is_succeed = 0
         print "Write topic failed"
@@ -83,12 +106,15 @@ def write_article_into_db(conn, article_info):
         conn.commit()
         print "Write article succeeded..."
     except (mdb.ProgrammingError, mdb.OperationalError) as e:
-        print e,message
+        if 'MySQL server has gone away' in e.message:
+            return MYSQL_GONE_ERROR
+        else:
+            print "Other Program or Operation Errors"
+            traceback.print_exc()
     except Exception as e:
         is_succeed = 0
-        print e.message
         print "Write article Failed..."
-        # traceback.print_exc()
+        traceback.print_exc()
         conn.rollback()
     finally:
         cursor.close()

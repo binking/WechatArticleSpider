@@ -1,10 +1,11 @@
 #coding=utf-8
 import sys
-import requests, urllib
+import requests, urllib, signal
 import json, traceback, bs4
 from datetime import datetime as dt
 from urlparse import urlparse, parse_qs
 from bs4 import BeautifulSoup as bs
+from abuyun_proxy import change_tunnel
 reload(sys)
 sys.setdefaultencoding('utf-8')
 
@@ -19,36 +20,43 @@ IGNORE_RECORD = -6
 
 WX_CURL = """curl 'http://mp.weixin.qq.com/mp/getcomment?src={src}&ver={ver}&timestamp={timestamp}&signature={signature}&&uin=&key=&pass_ticket=&wxtoken=&devicetype=&clientversion=0&x5=0' -H 'Accept-Encoding: gzip, deflate, sdch' -H 'Accept-Language: zh-CN,zh;q=0.8' -H 'User-Agent: Mozilla/5.0 (Windows NT 6.3; WOW64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/54.0.2840.87 Safari/537.36' -H 'Accept: */*' -H 'Referer: {article_url}' -H 'X-Requested-With: XMLHttpRequest' -H 'Connection: keep-alive' --compressed"""
 
+def handle_sleep(seconds):
+    print "Sleeping %d seconds " % seconds
+    time.sleep(seconds)
 
+def handle_proxy_error(seconds):
+    print "Sleep %d seconds " % seconds, 
+    handle_sleep(seconds)
+    changed_proxy = change_tunnel()
+    if changed_proxy:
+        print "and change IP to %s " % changed_proxy.get("ip_addr")
+    else:
+        print "but Change Proxy Error"
 
-def curl_str2post_data(curl_str):
-    tokens = curl_str.split("'")
+def timeout(seconds, error_message="Timeout Error: the cmd 30s have not finished."):
+    def decorated(func):
+        result = ""
+        def _handle_timeout(signum, frame):
+            global result
+            result = error_message
+            raise TypeError(error_message)
+        @functools.wraps(func)
+        def wrapper(*args, **kwargs):
+            global result
+            signal.signal(signal.SIGALRM, _handle_timeout)
+            signal.alarm(seconds)
+
+            try:
+                result = func(*args, **kwargs)
+            finally:
+                signal.alarm(0)
+                return result
+            return result
+    return decorated
+
+def curl_str2post_data(wx_url):
     url = ""
     post_data = {}
-    try:
-        for i in range(0, len(tokens)-1, 2):
-            if tokens[i].startswith("curl"):
-                url = tokens[i+1]
-            elif "-H" in tokens[i]:
-                attr, value = tokens[i+1].split(": ")  # be careful space
-                post_data[attr] = value
-    except Exception as e:
-        print "Parsed cURL Failed"
-        traceback.print_exc()
-        return '', {}
-    return url, post_data
-
-
-def get_like_vote_nums(wx_url, proxy={}):
-    """
-    Given the url of wechat article and proxies of Abuyun,
-    get the numbers of praise and read throught Web Api json
-    param wx_url(str): the url of wechat
-    param proxy(dict, optional): the Abutun proxies
-    """
-    print "Parsing Wetchat article: ", wx_url
-    like_num = -1
-    reaq_num = -1
     # Get query string from url
     query_string = parse_qs(urlparse(wx_url).query)
     # Format api access
@@ -59,24 +67,53 @@ def get_like_vote_nums(wx_url, proxy={}):
         article_url=wx_url,
         signature=urllib.quote(query_string.get("signature", [""])[0]),
     )
-    # trasfer curl string to requests send data
-    api_url, post_data = curl_str2post_data(curl_str)
-    if not(api_url and post_data):  # transfer curl string failed.
-        return -1, -1
-
+    tokens = curl_str.split("'")
     try:
-        r = requests.get(api_url, params=post_data, proxies=proxy)
-        response_dict = json.loads(r.text)
-        like_num = int(response_dict.get('like_num', -1))
-        read_num = int(response_dict.get('read_num', -1))
+        for i in range(0, len(tokens)-1, 2):
+            if tokens[i].startswith("curl"):
+                url = tokens[i+1]
+            elif "-H" in tokens[i]:
+                attr, value = tokens[i+1].split(": ")  # be careful space
+                post_data[attr] = value
     except Exception as e:
-        print e
+        print "Parsed cURL Failed"
         traceback.print_exc()
-        print "Get the numbers of like and read FAILED"
+    return url, post_data
+
+
+def get_like_vote_nums(url, data, proxy={}, num_tries=3):
+    """
+    Given the url of wechat article and proxies of Abuyun,
+    get the numbers of praise and read throught Web Api json
+    param wx_url(str): the url of wechat
+    param proxy(dict, optional): the Abutun proxies
+    """
+    like_num = -1
+    read_num = -1
+    if not(url and data):  # transfer curl string failed.
+        return like_num, read_num
+    for attempt in range(num_tries):
+        try:
+            r = requests.get(url, params=data, proxies=proxy)
+            response_dict = json.loads(r.text)
+            like_num = int(response_dict.get('like_num', -1))
+            read_num = int(response_dict.get('read_num', -1))
+        except requests.exceptions.ConnectionError as e:
+            traceback.print_exc()
+            handle_sleep(pow(2, attempt+1))
+            continue
+        except requests.exceptions.ProxyError as e:
+            traceback.print_exc()
+            handle_proxy_error(pow(2, attempt+1))
+            continue
+        except Exception as e:
+            traceback.print_exc()
+            print "Get the numbers of like and read FAILED"
+        break
     return like_num, read_num
 
 
-def get_article_content(wx_url, proxy={}):
+def get_article_content(wx_url, proxy={}, num_tries=3):
     """
     Given a url of wechat article, parse the HTML source code and get text
     param wx_url(str): url string
@@ -84,20 +121,29 @@ def get_article_content(wx_url, proxy={}):
     return content(str): long Chinese text
     """
     content = ""
-    try:
-        r = requests.get(wx_url, proxies=proxy)
-        parser = bs(r.text, "html.parser")
-        content_div = parser.find("div", attrs={"class":"rich_media_content"})
-        # read_span = parser.find("span", attrs={"id": "sg_readNum3"})  No read num
-        # praise_span = parser.find("span", attrs={"id": "sg_likeNum3"})  No like num
-        if content_div:
-            for child in content_div.children:
-                if isinstance(child, bs4.element.Tag):
-                    content += child.text
-    except Exception as e:
-        print e
-        print "Parsed Content Failed..."
-        traceback.print_exc()
+    for attempt in range(num_tries):
+        try:
+            r = requests.get(wx_url, proxies=proxy)
+            parser = bs(r.text, "html.parser")
+            content_div = parser.find("div", attrs={"class":"rich_media_content"})
+            # read_span = parser.find("span", attrs={"id": "sg_readNum3"})  No read num
+            # praise_span = parser.find("span", attrs={"id": "sg_likeNum3"})  No like num
+            if content_div:
+                for child in content_div.children:
+                    if isinstance(child, bs4.element.Tag):
+                        content += child.text
+        except requests.exceptions.ConnectionError as e:
+            traceback.print_exc()
+            handle_sleep(pow(2, attempt+1))
+            continue
+        except requests.exceptions.ProxyError as e:
+            traceback.print_exc()
+            handle_proxy_error(pow(2, attempt+1))
+            continue
+        except Exception as e:
+            print "Parsed Content Failed..."
+            traceback.print_exc()
+        break
     return content
 
 
@@ -112,14 +158,17 @@ def get_article_info(sougou_url, wx_url, proxy={}):
         like_num: the number of praise,
     }
     """
-    err_no = -0
+    print "Parsing Wetchat article: ", wx_url
+    err_no = 0
     err_msg = ""
     article_info = {}  # form the info dict of article
     article_info['createdate'] = dt.now().strftime('%Y-%m-%d %H:%M:%S')  # 2016-11-07 12:23:45
     article_info['search_url'] = sougou_url
     article_info['uri'] = wx_url
     article_info['article_url'] = wx_url
-    like_num, read_num = get_like_vote_nums(wx_url, proxy)
+    # trasfer curl string to requests send data
+    api_url, post_data = curl_str2post_data(wx_url)
+    like_num, read_num = get_like_vote_nums(api_url, post_data, proxy)
     content = get_article_content(wx_url, proxy)
     article_info["read_num"] = read_num
     article_info["like_num"] = like_num
