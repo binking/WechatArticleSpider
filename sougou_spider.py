@@ -5,6 +5,7 @@ import json, traceback, bs4
 from datetime import datetime as dt
 from urlparse import urlparse, parse_qs
 from bs4 import BeautifulSoup as bs
+from abuyun_proxy import gen_abuyun_proxy
 reload(sys)
 sys.setdefaultencoding('utf-8')
 
@@ -31,13 +32,14 @@ def parse_sougou_results(keyword, num_tries=3):
     """
     print "Sougou searching for ", keyword
     wx_article_urls = []
+    proxy = gen_abuyun_proxy()
     err_no = SUCCESSED; err_msg = "Successed"; data = {}
     for attemp in range(3):
         try:
-            # url = QUERY_URL.format(kw=urllib.quote(keyword))
-            url = QUERY_URL.format(kw=keyword)
+            url = QUERY_URL.format(kw=urllib.quote(keyword))
+            # url = QUERY_URL.format(kw=keyword)
             access_time = dt.now().strftime("%Y-%m-%d %H:%M:%S")
-            r =requests.get(url)
+            r =requests.get(url, proxies=proxy)
             parser = bs(r.text, "html.parser")
             for a_tag in parser.find_all("a"):
                 if "http://mp.weixin.qq.com" in a_tag.get("href", "") and a_tag.find("em"):
@@ -58,3 +60,8 @@ def parse_sougou_results(keyword, num_tries=3):
     return {"err_no": err_no, "err_msg": err_msg, "data": data}
 
 
+def test_parse_sougou_results():
+    abuyun_proxy = gen_abuyun_proxy()
+    list_of_kw = ["特朗普", "45任总统", "暴走大事件", "王尼玛", "阴阳师"]
+    for kw in list_of_kw:
+        print parse_sougou_results(kw, abuyun_proxy)

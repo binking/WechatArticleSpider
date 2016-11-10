@@ -1,5 +1,5 @@
 #coding=utf-8
-import sys
+import sys, time
 import requests, urllib, signal
 import json, traceback, bs4
 from datetime import datetime as dt
@@ -98,6 +98,9 @@ def get_like_vote_nums(url, data, proxy={}, num_tries=3):
             response_dict = json.loads(r.text)
             like_num = int(response_dict.get('like_num', -1))
             read_num = int(response_dict.get('read_num', -1))
+        except ValueError as e:
+            traceback.print_exc()
+            print r.text
         except requests.exceptions.ConnectionError as e:
             traceback.print_exc()
             handle_sleep(pow(2, attempt+1))
@@ -147,7 +150,7 @@ def get_article_content(wx_url, proxy={}, num_tries=3):
     return content
 
 
-def get_article_info(sougou_url, wx_url, proxy={}):
+def get_article_info(sougou_url, wx_url, search_word='', proxy={}):
     """
     Given the wetchar article url, call get_like_vote_nums() and get_article_content()
     param wx_url(str): the url of wetchat article
@@ -158,7 +161,10 @@ def get_article_info(sougou_url, wx_url, proxy={}):
         like_num: the number of praise,
     }
     """
-    print "Parsing Wetchat article: ", wx_url
+    if search_word:
+        print "Parsing Wetchat article of %s: %s" % (search_word, wx_url),
+    else:
+        print "Parsing Wetchat article : s", wx_url
     err_no = 0
     err_msg = ""
     article_info = {}  # form the info dict of article
@@ -173,6 +179,8 @@ def get_article_info(sougou_url, wx_url, proxy={}):
     article_info["read_num"] = read_num
     article_info["like_num"] = like_num
     article_info["content"] = content
+    print "it has %d like, %d read and %d characters\n" % (
+            like_num, read_num, len(content))
     if read_num < 0:
         err_no = IGNORE_RECORD  # if failed in getting read_num, not write into db
     return dict(err_no=err_no, err_msg=err_msg, data=article_info)

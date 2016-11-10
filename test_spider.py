@@ -20,7 +20,7 @@ def main():
     db_conn = connect_database()
     abuyun_proxy = gen_abuyun_proxy()
     print abuyun_proxy
-    for kw in read_topics_from_db(db_conn):
+    for kw in read_topics_from_db(db_conn)[::-1]:
         sougou_result = parse_sougou_results(kw)
         result_no1 = write_topic_into_db(db_conn, sougou_result['data'])
         if result_no1 == MYSQL_GONE_ERROR:  # reconnect database
@@ -29,7 +29,7 @@ def main():
             db_conn = connect_database()
         for i, url in enumerate(sougou_result['data']['urls']):
             try:
-                print "%d-th " % i,
+                print "%d-th " % i+1,
                 wetchat_result = get_article_info(sougou_result['data'].get('search_url', ), url, proxy=abuyun_proxy)
                 # proxy_info = get_current_ip()
                 if wetchat_result['err_no'] == IGNORE_RECORD:

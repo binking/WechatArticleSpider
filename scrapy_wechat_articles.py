@@ -16,6 +16,11 @@ reload(sys)
 sys.setdefaultencoding('utf-8')
 
 IGNORE_RECORD = -6
+MYSQL_SERVER_HOST = '192.168.1.103'
+MYSQL_SERVER_PASS = 'Crawler@test1'
+MYSQL_SERVER_USER = 'web'
+MYSQL_SERVER_BASE = 'webcrawler'
+MYSQL_SERVER_CSET = 'utf8'
 URL_QUEUE = Queue()
 ARTICLE_QUEUE = Queue()
 TOPIC_QUEUE = Queue()
@@ -44,8 +49,8 @@ def article_db_writer():
 	"""
 	Consummer for articles
 	"""
-	with mdb.connect(host = "192.168.1.103", user="web", 
-        passwd="Crawler@test1", db="webcrawler", charset="utf8" ) as conn:
+	with mdb.connect(host = MYSQL_SERVER_HOST, user=MYSQL_SERVER_USER, passwd=MYSQL_SERVER_PASS, 
+		db=MYSQL_SERVER_BASE, charset=MYSQL_SERVER_CSET) as conn:
 		while not ARTICLE_QUEUE.empty():
 			article_record = ARTICLE_QUEUE.get_nowait()
 			write_article_into_db(conn, article_record)
@@ -54,8 +59,8 @@ def topic_db_writer():
 	"""
 	Consummer for topics
 	"""
-	with mdb.connect(host = "192.168.1.103", user="web", 
-        passwd="Crawler@test1", db="webcrawler", charset="utf8" ) as conn:
+	with mdb.connect(host=MYSQL_SERVER_HOST, user=MYSQL_SERVER_USER, passwd=MYSQL_SERVER_PASS, 
+		db=MYSQL_SERVER_BASE, charset=MYSQL_SERVER_CSET) as conn:
 		while not TOPIC_QUEUE.empty():
 			topic_record = TOPIC_QUEUE.get_nowait()
 			write_topic_into_db(conn, topic_record)
@@ -72,7 +77,7 @@ def run_all_worker(conn, concurrency=4):
     except KeyboardInterrupt:
         print "Interrupted by you and quit in force, but save the results"
     # Consummer followes
-    wxurl_generator(abuyun_proxy)
+    test_wxarticle_generator(abuyun_proxy)
     article_db_writer(conn)
     topic_db_writer(conn)
 
