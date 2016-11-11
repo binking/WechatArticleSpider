@@ -18,8 +18,8 @@ def connect_database():
             charset="utf8"
         )
     except Exception as e:
-        print "Connecting database error."
         traceback.print_exc()
+        print "Connecting database error."
         return False
     return WEBCRAWLER_DB_CONN
 
@@ -49,12 +49,12 @@ def write_topic_into_db(conn, topic_info):
         if 'MySQL server has gone away' in e.message:
             return MYSQL_GONE_ERROR
         else:
-            print "Other Program or Operation Errors"
             traceback.print_exc()
+            print "Other Program or Operation Errors"
     except Exception as e:
+        traceback.print_exc()
         is_succeed = 0
         print "Write topic failed"
-        traceback.print_exc()
         conn.rollback()
     finally:
         cursor.close()
@@ -109,12 +109,12 @@ def write_article_into_db(conn, article_info):
         if 'MySQL server has gone away' in e.message:
             return MYSQL_GONE_ERROR
         else:
-            print "Other Program or Operation Errors"
             traceback.print_exc()
+            print "Other Program or Operation Errors"
     except Exception as e:
+        traceback.print_exc()
         is_succeed = 0
         print "Write article Failed..."
-        traceback.print_exc()
         conn.rollback()
     finally:
         cursor.close()
@@ -134,8 +134,8 @@ def read_topics_from_db(conn):
         for t in topics:
             topic_list.append(t[0])
     except Exception as e:
-        print "Unable read topic from database.."
         traceback.print_exc()
+        print "Unable read topic from database.."
     return topic_list
 
 
