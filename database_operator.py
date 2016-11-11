@@ -40,10 +40,13 @@ def write_topic_into_db(conn, topic_info):
                        topic_info.get('createdate', ''), topic_info.get('search_url', ''))
     try:
         # import ipdb; ipdb.set_trace()
-        cursor = conn.cursor()
+        if isinstance(conn, mdb.connections.Connection):
+            cursor = conn.cursor()
+        else: 
+            cursor = conn
         cursor.execute(deprecate_topic)
         cursor.execute(insert_new_topic)
-        conn.commit()
+        # conn.commit()
         print "Write topic succeeded..."
     except (mdb.ProgrammingError, mdb.OperationalError) as e:
         if 'MySQL server has gone away' in e.message:
@@ -55,9 +58,6 @@ def write_topic_into_db(conn, topic_info):
         traceback.print_exc()
         is_succeed = 0
         print "Write topic failed"
-        conn.rollback()
-    finally:
-        cursor.close()
     return is_succeed
 
 
@@ -76,7 +76,10 @@ def write_article_into_db(conn, article_info):
                           "VALUES ('{uri}', '{date}', '{aurl}', '{text}', {rnum}, {tnum});"
     try:
         # Soft-remove old relation and insert new relation
-        cursor = conn.cursor()
+        if isinstance(conn, mdb.connections.Connection):
+            cursor = conn.cursor()  # for using connect()
+        else: 
+            cursor = conn  # for using try-with-resources
         cursor.execute("""
             UPDATE wechatsearcharticlerelation
             SET is_up2date='N'
@@ -86,7 +89,8 @@ def write_article_into_db(conn, article_info):
             surl=search_url,
             date=article_info.get('createdate', ''), 
             aurl=article_url
-        ))  
+        ))
+        # conn.commit() # save relation no matter the article is correct or not
         # No need to set is_up2date, cuz temp wx url would be deprecated automatically. T^T
 
         is_existed = cursor.execute("""
@@ -103,7 +107,7 @@ def write_article_into_db(conn, article_info):
                 rnum=article_info.get('read_num', -1),
                 tnum=article_info.get('like_num', -1)
             ))  # No need to adjust the temp wx url exited, also
-        conn.commit()
+        # conn.commit()
         print "Write article succeeded..."
     except (mdb.ProgrammingError, mdb.OperationalError) as e:
         if 'MySQL server has gone away' in e.message:
@@ -115,28 +119,41 @@ def write_article_into_db(conn, article_info):
         traceback.print_exc()
         is_succeed = 0
         print "Write article Failed..."
-        conn.rollback()
-    finally:
-        cursor.close()
     return is_succeed
 
 def read_topics_from_db(conn):
     """
-    Read topics from database, return list of topics
+    Read unchecked topics from database, return list of topics
     """
-    topic_list = []
+    todo_topic_list = []
+    done_topic_list = []
+    all_topic_list = []
     try:
         cursor = conn.cursor()
+        # read search keywords from table topicinfo
         cursor.execute("""
             SELECT DISTINCT title FROM topicinfo
         """)
-        topics = cursor.fetchall()
-        for t in topics:
-            topic_list.append(t[0])
+        topicinfo_res = cursor.fetchall()
+        for res in topicinfo_res:
+            all_topic_list.append(res[0])
+        print "There are totally %d topics.." % len(all_topic_list)  
+        # read search keywords from wechatsearchtopic
+        cursor.execute("""
+            SELECT DISTINCT search_keyword 
+            FROM wechatsearchtopic WHERE is_up2date='Y'
+        """)
+        wechat_res = cursor.fetchall()
+        for res in wechat_res:
+            done_topic_list.append(res[0])
+        # Filter
+        for tp in all_topic_list:
+            if tp not in done_topic_list:
+                todo_topic_list.append(tp)
     except Exception as e:
         traceback.print_exc()
         print "Unable read topic from database.."
-    return topic_list
+    return todo_topic_list
 
 
 """

@@ -35,15 +35,19 @@ def test_wxurl_generator(keyword):
     for url in sougou_result['data']['urls']:
         URL_QUEUE.put("%s|%s|%s" % (keyword, sougou_url, url))  # merge two url
 
-def test_wxarticle_generator(abuyunproxy={}):
+def test_wxarticle_generator(merged_url):
     """
     Consummer for urls and Producer for articles
     """
-    while not URL_QUEUE.empty():
-        merged_url = URL_QUEUE.get_nowait()
-        word, s_url, w_url = merged_url.split("|")
-        wetchat_result = get_article_info(s_url, w_url, search_word=word, proxy=abuyunproxy)
-        ARTICLE_QUEUE.put(wetchat_result['data'])  # generate article data and put into queue
+    abuyun_proxy = gen_abuyun_proxy()
+    # while not URL_QUEUE.empty():
+    #    merged_url = URL_QUEUE.get_nowait()
+    #    word, s_url, w_url = merged_url.split("|")
+    #    wetchat_result = get_article_info(s_url, w_url, search_word=word, proxy=abuyun_proxy)
+    #    ARTICLE_QUEUE.put(wetchat_result['data'])  # generate article data and put into queue
+    word, s_url, w_url = merged_url.split("|")
+    wetchat_result = get_article_info(s_url, w_url, search_word=word, proxy=abuyun_proxy)
+    ARTICLE_QUEUE.put(wetchat_result['data'])  # generate article data and put into queue
 
 def test_article_db_writer():
     """
@@ -70,18 +74,21 @@ def test_topic_db_writer():
                 topic_record['search_keyword'], len(topic_record['urls']))
 
 def run_all_worker(concurrency=5):
-    abuyun_proxy = gen_abuyun_proxy()
     try:
         # Producer is on !!!
         list_of_kw = ["特朗普", "暴走大事件"]
-        pool = MPool(concurrency)  # Processes pool
-        pool.map(test_wxurl_generator, list_of_kw)  # Keep up generate keywords
-        pool.close()
-        pool.join()  # why join
+        topic_pool = MPool(concurrency)  # Processes pool
+        topic_pool.map(test_wxurl_generator, list_of_kw)  # Keep up generate keywords
+        topic_pool.close()
+        topic_pool.join()  # why join --> let Processes know all were consummed
+
+        article_pool = MPool(concurrency)
+        article_pool.map(test_wxarticle_generator, list(URL_QUEUE.queue))
+        article_pool.close()
+        article_pool.join()
     except KeyboardInterrupt:
         print "Interrupted by you and quit in force, but save the results"
     # Consummer followes
-    test_wxarticle_generator(abuyun_proxy)
     test_article_db_writer()
     test_topic_db_writer()
 

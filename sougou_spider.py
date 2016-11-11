@@ -1,5 +1,5 @@
 #coding=utf-8
-import sys
+import sys, time
 import requests, urllib, traceback
 import json, traceback, bs4
 from datetime import datetime as dt
@@ -34,10 +34,10 @@ def parse_sougou_results(keyword, num_tries=3):
     wx_article_urls = []
     proxy = gen_abuyun_proxy()
     err_no = SUCCESSED; err_msg = "Successed"; data = {}
-    for attemp in range(3):
+    for attempt in range(3):
         try:
-            url = QUERY_URL.format(kw=urllib.quote(keyword))
-            # url = QUERY_URL.format(kw=keyword)
+            # url = QUERY_URL.format(kw=urllib.quote(keyword))
+            url = QUERY_URL.format(kw=keyword)
             access_time = dt.now().strftime("%Y-%m-%d %H:%M:%S")
             r =requests.get(url, proxies=proxy)
             parser = bs(r.text, "html.parser")

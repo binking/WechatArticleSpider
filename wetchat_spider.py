@@ -100,14 +100,15 @@ def get_like_vote_nums(url, data, proxy={}, num_tries=3):
             read_num = int(response_dict.get('read_num', -1))
         except ValueError as e:
             traceback.print_exc()
-            print r.text
+            handle_sleep(pow(2, attempt+2))
+            continue
         except requests.exceptions.ConnectionError as e:
             traceback.print_exc()
-            handle_sleep(pow(2, attempt+1))
+            handle_sleep(pow(2, attempt+2))
             continue
         except requests.exceptions.ProxyError as e:
             traceback.print_exc()
-            handle_proxy_error(pow(2, attempt+1))
+            handle_proxy_error(pow(2, attempt+2))
             continue
         except Exception as e:
             traceback.print_exc()
@@ -137,11 +138,11 @@ def get_article_content(wx_url, proxy={}, num_tries=3):
                         content += child.text
         except requests.exceptions.ConnectionError as e:
             traceback.print_exc()
-            handle_sleep(pow(2, attempt+1))
+            handle_sleep(pow(2, attempt+2))
             continue
         except requests.exceptions.ProxyError as e:
             traceback.print_exc()
-            handle_proxy_error(pow(2, attempt+1))
+            handle_proxy_error(pow(2, attempt+2))
             continue
         except Exception as e:
             print "Parsed Content Failed..."
@@ -162,9 +163,9 @@ def get_article_info(sougou_url, wx_url, search_word='', proxy={}):
     }
     """
     if search_word:
-        print "Parsing Wetchat article of %s: %s" % (search_word, wx_url),
+        print "Parsing Wetchat article about %s: %s;" % (search_word, wx_url),
     else:
-        print "Parsing Wetchat article : s", wx_url
+        print "Parsing Wetchat article : ", wx_url
     err_no = 0
     err_msg = ""
     article_info = {}  # form the info dict of article
