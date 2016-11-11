@@ -18,8 +18,10 @@ reload(sys)
 sys.setdefaultencoding('utf-8')
 
 IGNORE_RECORD = -6
-MYSQL_SERVER_HOST = '192.168.1.103'
-MYSQL_SERVER_PASS = 'Crawler@test1'
+MYSQL_SERVER_HOST = "123.206.64.22"
+# MYSQL_SERVER_HOST = "192.168.1.103"
+MYSQL_SERVER_PASS = "Crawler20161231"
+# MYSQL_SERVER_PASS = "Crawler@test1"
 MYSQL_SERVER_USER = 'web'
 MYSQL_SERVER_BASE = 'webcrawler'
 MYSQL_SERVER_CSET = 'utf8'
@@ -76,31 +78,31 @@ def topic_db_writer(topic_queue):
             topic_queue.task_done()
 
 
-def run_all_worker(concurrency=16):
+def run_all_worker(concurrency=4):
     try:
         # Producer is on !!!
         url_queue = mp.JoinableQueue()
         topic_queue = mp.JoinableQueue()
         article_queue = mp.JoinableQueue()
 
-        parse_article_proc = mp.Process(target=wxarticle_generator, 
-            args=(url_queue, article_queue))
-        parse_article_proc.daemon = True
-        parse_article_proc.start()
+        for _ in range(concurrency):
+            parse_article_proc = mp.Process(target=wxarticle_generator, 
+                args=(url_queue, article_queue))
+            parse_article_proc.daemon = True
+            parse_article_proc.start()
 
-        write_topic_proc = mp.Process(target=topic_db_writer, args=(topic_queue,))
-        write_topic_proc.daemon = True
-        write_topic_proc.start()
+            write_topic_proc = mp.Process(target=topic_db_writer, args=(topic_queue,))
+            write_topic_proc.daemon = True
+            write_topic_proc.start()
 
-        write_article_proc = mp.Process(target=article_db_writer, args=(article_queue, ))
-        write_article_proc.daemon = True
-        write_article_proc.start()
+            write_article_proc = mp.Process(target=article_db_writer, args=(article_queue, ))
+            write_article_proc.daemon = True
+            write_article_proc.start()
 
         conn = connect_database()
         if not conn:
             return False
-        list_of_kw = read_topics_from_db(conn)[:100]
-        print "There are %d topics to process" % len(list_of_kw)
+        list_of_kw = read_topics_from_db(conn)
         wxurl_generator(list_of_kw, url_queue, topic_queue)
         topic_queue.join()
         url_queue.join()

@@ -11,9 +11,9 @@ def connect_database():
     try:
         print "Connecting database ..."
         WEBCRAWLER_DB_CONN = mdb.connect(
-            host = "192.168.1.103", 
+            host = "123.206.64.22", 
             user="web", 
-            passwd="Crawler@test1", 
+            passwd="Crawler20161231", 
             db="webcrawler",
             charset="utf8"
         )
@@ -130,30 +130,19 @@ def read_topics_from_db(conn):
     Read unchecked topics from database, return list of topics
     """
     todo_topic_list = []
-    done_topic_list = []
-    all_topic_list = []
     try:
         cursor = conn.cursor()
         # read search keywords from table topicinfo
         cursor.execute("""
-            SELECT DISTINCT title FROM topicinfo
+            SELECT id, title FROM topicinfo T
+            WHERE theme like '新浪微博_热门话题%' AND NOT EXISTS (
+            SELECT id FROM wechatsearchtopic
+            WHERE search_keyword=T.title);
         """)
         topicinfo_res = cursor.fetchall()
         for res in topicinfo_res:
-            all_topic_list.append(res[0])
-        print "There are totally %d topics.." % len(all_topic_list)  
-        # read search keywords from wechatsearchtopic
-        cursor.execute("""
-            SELECT DISTINCT search_keyword 
-            FROM wechatsearchtopic WHERE is_up2date='Y'
-        """)
-        wechat_res = cursor.fetchall()
-        for res in wechat_res:
-            done_topic_list.append(res[0])
-        # Filter
-        for tp in all_topic_list:
-            if tp not in done_topic_list:
-                todo_topic_list.append(tp)
+            todo_topic_list.append(res[1])
+        print "There are %d topics to process" % len(todo_topic_list)
     except Exception as e:
         traceback.print_exc()
         print "Unable read topic from database.."
@@ -161,6 +150,14 @@ def read_topics_from_db(conn):
 
 
 """
+
+WEBCRAWLER_DB_CONN = mdb.connect(
+            host = "192.168.1.103", 
+            user="web", 
+            passwd="Crawler@test1", 
+            db="webcrawler",
+            charset="utf8"
+        )
 print "Inserted article error, tried to skip content"
         try:
             cursor.execute(insert_new_article.format(
