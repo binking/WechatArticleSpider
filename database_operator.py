@@ -17,11 +17,15 @@ def connect_database():
             db="webcrawler",
             charset="utf8"
         )
+        return WEBCRAWLER_DB_CONN
+    except mdb.OperationalError as e:
+        traceback.print_exc()
+        print "Connect database error..."
     except Exception as e:
         traceback.print_exc()
         print "Connecting database error."
-        return False
-    return WEBCRAWLER_DB_CONN
+    return False
+    
 
 def write_topic_into_db(conn, topic_info):
     """

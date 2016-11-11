@@ -97,7 +97,9 @@ def run_all_worker(concurrency=16):
         write_article_proc.start()
 
         conn = connect_database()
-        list_of_kw = read_topics_from_db(conn)
+        if not conn:
+            return False
+        list_of_kw = read_topics_from_db(conn)[:100]
         print "There are %d topics to process" % len(list_of_kw)
         wxurl_generator(list_of_kw, url_queue, topic_queue)
         topic_queue.join()
