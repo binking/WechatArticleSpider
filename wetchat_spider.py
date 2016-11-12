@@ -81,7 +81,7 @@ def curl_str2post_data(wx_url):
     return url, post_data
 
 
-def get_like_vote_nums(url, data, proxy={}, num_tries=3):
+def get_like_vote_nums(url, data, proxy={}, num_tries=5):
     """
     Given the url of wechat article and proxies of Abuyun,
     get the numbers of praise and read throught Web Api json
@@ -98,22 +98,20 @@ def get_like_vote_nums(url, data, proxy={}, num_tries=3):
             response_dict = json.loads(r.text)
             like_num = int(response_dict.get('like_num', -1))
             read_num = int(response_dict.get('read_num', -1))
+            break
         except ValueError as e:
-            traceback.print_exc()
+            if not len(r.text):
+                print "Sougou Api return none, try again after",
             handle_sleep(pow(2, attempt+2))
-            continue
         except requests.exceptions.ConnectionError as e:
             traceback.print_exc()
             handle_sleep(pow(2, attempt+2))
-            continue
         except requests.exceptions.ProxyError as e:
             traceback.print_exc()
             handle_proxy_error(pow(2, attempt+2))
-            continue
         except Exception as e:
             traceback.print_exc()
             print "Get the numbers of like and read FAILED"
-        break
     return like_num, read_num
 
 

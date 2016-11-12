@@ -18,13 +18,6 @@ reload(sys)
 sys.setdefaultencoding('utf-8')
 
 IGNORE_RECORD = -6
-MYSQL_SERVER_HOST = "123.206.64.22"
-# MYSQL_SERVER_HOST = "192.168.1.103"
-MYSQL_SERVER_PASS = "Crawler20161231"
-# MYSQL_SERVER_PASS = "Crawler@test1"
-MYSQL_SERVER_USER = 'web'
-MYSQL_SERVER_BASE = 'webcrawler'
-MYSQL_SERVER_CSET = 'utf8'
 
 
 def wxurl_generator(keywords, url_queue, topic_queue):
@@ -58,11 +51,10 @@ def article_db_writer(article_queue):
     Consummer for articles
     """
     while True:
-        with mdb.connect(host = MYSQL_SERVER_HOST, user=MYSQL_SERVER_USER, passwd=MYSQL_SERVER_PASS, 
-            db=MYSQL_SERVER_BASE, charset=MYSQL_SERVER_CSET) as conn:
+        with connect_database() as cursor:
             # using try-with-recources, auto-commit
             article_record = article_queue.get()
-            write_article_into_db(conn, article_record)
+            write_article_into_db(cursor, article_record)
             article_queue.task_done()
 
 
@@ -71,10 +63,9 @@ def topic_db_writer(topic_queue):
     Consummer for topics
     """
     while True:
-        with mdb.connect(host=MYSQL_SERVER_HOST, user=MYSQL_SERVER_USER, passwd=MYSQL_SERVER_PASS, 
-            db=MYSQL_SERVER_BASE, charset=MYSQL_SERVER_CSET) as conn:
+        with connect_database() as cursor:
             topic_record = topic_queue.get()
-            write_topic_into_db(conn, topic_record)
+            write_topic_into_db(cursor, topic_record)
             topic_queue.task_done()
 
 
@@ -85,28 +76,30 @@ def run_all_worker(concurrency=4):
         topic_queue = mp.JoinableQueue()
         article_queue = mp.JoinableQueue()
 
-        for _ in range(concurrency):
+        for _ in range(6):  # different process, different speed
             parse_article_proc = mp.Process(target=wxarticle_generator, 
                 args=(url_queue, article_queue))
             parse_article_proc.daemon = True
             parse_article_proc.start()
 
-            write_topic_proc = mp.Process(target=topic_db_writer, args=(topic_queue,))
-            write_topic_proc.daemon = True
-            write_topic_proc.start()
+        write_topic_proc = mp.Process(target=topic_db_writer, args=(topic_queue,))
+        write_topic_proc.daemon = True
+        write_topic_proc.start()
 
+        for _ in range(4):  #  4 processes to write article info into db
             write_article_proc = mp.Process(target=article_db_writer, args=(article_queue, ))
             write_article_proc.daemon = True
             write_article_proc.start()
 
-        conn = connect_database()
-        if not conn:
-            return False
-        list_of_kw = read_topics_from_db(conn)
-        wxurl_generator(list_of_kw, url_queue, topic_queue)
-        topic_queue.join()
-        url_queue.join()
-        article_queue.join()
+        with connect_database() as cursor:
+            if not cursor:
+                return False
+            list_of_kw = read_topics_from_db(cursor)
+            wxurl_generator(list_of_kw, url_queue, topic_queue)
+            topic_queue.join()
+            url_queue.join()
+            article_queue.join()
+            return True
     except KeyboardInterrupt:
         print "Interrupted by you and quit in force, but save the results"
 

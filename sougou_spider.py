@@ -1,5 +1,5 @@
 #coding=utf-8
-import sys, time
+import sys, time, re
 import requests, urllib, traceback
 import json, traceback, bs4
 from datetime import datetime as dt
@@ -41,15 +41,21 @@ def parse_sougou_results(keyword, num_tries=3):
             access_time = dt.now().strftime("%Y-%m-%d %H:%M:%S")
             r =requests.get(url, proxies=proxy)
             parser = bs(r.text, "html.parser")
-            for a_tag in parser.find_all("a"):
-                if "http://mp.weixin.qq.com" in a_tag.get("href", "") and a_tag.find("em"):
-                    # the keyword was embeded in text in red color
-                    wx_article_urls.append(a_tag.get("href", ""))
+            # import ipdb; ipdb.set_trace()
+            for a_tag in parser.find_all("a", {
+                "id": re.compile(r"sogou.*title"), 
+                "href": re.compile("http://mp.weixin.qq.com*")
+            }):
+                # the keyword was embeded in text in red color
+                wx_article_urls.append(a_tag.get("href", ""))
             data = { "createdate": access_time, 
                       "uri": url, 
                       "search_url": url, 
                       "search_keyword": keyword, 
                       "urls": wx_article_urls}
+            if not wx_article_urls:
+                print "Is it really no urls ????? Read it again ..."
+                continue
             break # success and jump out of loop
         except Exception as e:
             traceback.print_exc()
