@@ -55,6 +55,7 @@ def parse_sougou_results(keyword, num_tries=3):
                       "urls": wx_article_urls}
             if not wx_article_urls:
                 print "Is it really no urls ????? Read it again ..."
+                handle_sleep(pow(2, attempt+1))
                 continue
             break # success and jump out of loop
         except Exception as e:

@@ -94,7 +94,7 @@ def run_all_worker(concurrency=4):
         with connect_database() as cursor:
             if not cursor:
                 return False
-            list_of_kw = read_topics_from_db(cursor)
+            list_of_kw = read_topics_from_db(cursor)[::-1]
             wxurl_generator(list_of_kw, url_queue, topic_queue)
             topic_queue.join()
             url_queue.join()
