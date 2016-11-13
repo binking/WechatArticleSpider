@@ -160,7 +160,7 @@ def read_topics_from_db(cursor):
         # read search keywords from table topicinfo
         cursor.execute("""
             SELECT id, title FROM topicinfo
-            WHERE STR_TO_DATE(createdate , '%Y-%m-%d %H:%i:%s') > '2016-11-04'
+            WHERE STR_TO_DATE(createdate , '%Y-%m-%d %H:%i:%s') > '2016-11-06'
             AND STR_TO_DATE(createdate, '%Y-%m-%d %H:%i:%s') < '2016-11-09'
         """)  # >_< , include >, exclude <
         topicinfo_res = cursor.fetchall()
