@@ -5,6 +5,12 @@ import json, traceback, bs4
 from datetime import datetime as dt
 from urlparse import urlparse, parse_qs
 from bs4 import BeautifulSoup as bs
+from requests.exceptions import (
+    ProxyError,
+    Timeout,
+    ConnectionError,
+    ConnectTimeout,
+)
 from abuyun_proxy import change_tunnel
 reload(sys)
 sys.setdefaultencoding('utf-8')
@@ -17,6 +23,7 @@ ACCESS_URL_ERROR = -3
 WRITE_DB_ERROR = -4
 SYNTAX_ERROR = -5
 IGNORE_RECORD = -6
+
 
 WX_CURL = """curl 'http://mp.weixin.qq.com/mp/getcomment?src={src}&ver={ver}&timestamp={timestamp}&signature={signature}&&uin=&key=&pass_ticket=&wxtoken=&devicetype=&clientversion=0&x5=0' -H 'Accept-Encoding: gzip, deflate, sdch' -H 'Accept-Language: zh-CN,zh;q=0.8' -H 'User-Agent: Mozilla/5.0 (Windows NT 6.3; WOW64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/54.0.2840.87 Safari/537.36' -H 'Accept: */*' -H 'Referer: {article_url}' -H 'X-Requested-With: XMLHttpRequest' -H 'Connection: keep-alive' --compressed"""
 
@@ -33,26 +40,6 @@ def handle_proxy_error(seconds):
     else:
         print "but Change Proxy Error"
 
-def timeout(seconds, error_message="Timeout Error: the cmd 30s have not finished."):
-    def decorated(func):
-        result = ""
-        def _handle_timeout(signum, frame):
-            global result
-            result = error_message
-            raise TypeError(error_message)
-        @functools.wraps(func)
-        def wrapper(*args, **kwargs):
-            global result
-            signal.signal(signal.SIGALRM, _handle_timeout)
-            signal.alarm(seconds)
-
-            try:
-                result = func(*args, **kwargs)
-            finally:
-                signal.alarm(0)
-                return result
-            return result
-    return decorated
 
 def curl_str2post_data(wx_url):
     url = ""
@@ -76,12 +63,12 @@ def curl_str2post_data(wx_url):
                 attr, value = tokens[i+1].split(": ")  # be careful space
                 post_data[attr] = value
     except Exception as e:
-        print "Parsed cURL Failed"
+        print "!"*20, "Parsed cURL Failed"
         traceback.print_exc()
     return url, post_data
 
 
-def get_like_vote_nums(url, data, proxy={}, num_tries=5):
+def get_like_vote_nums(url, data, proxy={}, num_tries=5, wait_time=10):
     """
     Given the url of wechat article and proxies of Abuyun,
     get the numbers of praise and read throught Web Api json
@@ -92,30 +79,38 @@ def get_like_vote_nums(url, data, proxy={}, num_tries=5):
     read_num = -1
     if not(url and data):  # transfer curl string failed.
         return like_num, read_num
-    for attempt in range(num_tries):
+    for attempt in range(1, num_tries+1):
         try:
-            r = requests.get(url, params=data, proxies=proxy)
+            r = requests.get(url, params=data, proxies=proxy, timeout=wait_time)
             response_dict = json.loads(r.text)
             like_num = int(response_dict.get('like_num', -1))
             read_num = int(response_dict.get('read_num', -1))
             break
         except ValueError as e:
             if not len(r.text):
-                print "Sougou Api return none, try again after",
-            handle_sleep(pow(2, attempt+2))
-        except requests.exceptions.ConnectionError as e:
-            traceback.print_exc()
-            handle_sleep(pow(2, attempt+2))
-        except requests.exceptions.ProxyError as e:
-            traceback.print_exc()
-            handle_proxy_error(pow(2, attempt+2))
+                print dt.now().strftime("%Y-%m-%d %H:%M:%S"), url, "returns none, try again after",
+            handle_sleep(5*attempt)
+        except Timeout as e:
+            # traceback.print_exc()
+            print dt.now().strftime("%Y-%m-%d %H:%M:%S"), 
+            handle_sleep(5*attempt)
+        except ConnectionError as e:
+            # traceback.print_exc()
+            print dt.now().strftime("%Y-%m-%d %H:%M:%S"), 
+            handle_sleep(5*attempt)
+        except ProxyError as e:
+            # traceback.print_exc()
+            print dt.now().strftime("%Y-%m-%d %H:%M:%S"), 
+            handle_proxy_error(5*attempt)
         except Exception as e:
             traceback.print_exc()
+            print dt.now().strftime("%Y-%m-%d %H:%M:%S"), 
             print "Get the numbers of like and read FAILED"
+            break  # unkown error should interrupt loop
     return like_num, read_num
 
 
-def get_article_content(wx_url, proxy={}, num_tries=3):
+def get_article_content(wx_url, proxy={}, num_tries=3, wait_time=5):
     """
     Given a url of wechat article, parse the HTML source code and get text
     param wx_url(str): url string
@@ -123,9 +118,9 @@ def get_article_content(wx_url, proxy={}, num_tries=3):
     return content(str): long Chinese text
     """
     content = ""
-    for attempt in range(num_tries):
+    for attempt in range(1, num_tries+1):
         try:
-            r = requests.get(wx_url, proxies=proxy)
+            r = requests.get(wx_url, proxies=proxy, timeout=wait_time)
             parser = bs(r.text, "html.parser")
             content_div = parser.find("div", attrs={"class":"rich_media_content"})
             # read_span = parser.find("span", attrs={"id": "sg_readNum3"})  No read num
@@ -134,18 +129,23 @@ def get_article_content(wx_url, proxy={}, num_tries=3):
                 for child in content_div.children:
                     if isinstance(child, bs4.element.Tag):
                         content += child.text
-        except requests.exceptions.ConnectionError as e:
-            traceback.print_exc()
-            handle_sleep(pow(2, attempt+2))
-            continue
-        except requests.exceptions.ProxyError as e:
-            traceback.print_exc()
-            handle_proxy_error(pow(2, attempt+2))
-            continue
+            break
+        except Timeout as e:  # ConnectTimeout and ReadTimeout is its child class
+            # traceback.print_exc()
+            print dt.now().strftime("%Y-%m-%d %H:%M:%S"),
+            handle_sleep(5*attempt)
+        except ConnectionError as e:
+            # traceback.print_exc()
+            print dt.now().strftime("%Y-%m-%d %H:%M:%S"),
+            handle_sleep(5*attempt)
+        except ProxyError as e:
+            # traceback.print_exc()
+            print dt.now().strftime("%Y-%m-%d %H:%M:%S"),
+            handle_proxy_error(5*attempt)
         except Exception as e:
-            print "Parsed Content Failed..."
             traceback.print_exc()
-        break
+            print dt.now().strftime("%Y-%m-%d %H:%M:%S"), "Parsed Content Failed..."
+            break
     return content
 
 

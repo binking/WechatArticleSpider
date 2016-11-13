@@ -1,5 +1,6 @@
 #coding=utf-8
 import sys, time
+from datetime import datetime as dt
 import MySQLdb as mdb
 import traceback
 reload(sys)
@@ -18,11 +19,11 @@ def connect_database():
     """
     We can't fail in connect database, which will make the subprocess zoombie
     """
-    attempt = 0
+    attempt = 1
     while True:
-        seconds = pow(2, attempt)
+        seconds = 3*attempt
+        print "@"*20, "Connecting database at %d-th time..." % attempt
         try:
-            print "Connecting database ..."
             WEBCRAWLER_DB_CONN = mdb.connect(
                 host=MYSQL_SERVER_HOST, 
                 user=MYSQL_SERVER_USER, 
@@ -32,13 +33,13 @@ def connect_database():
             )
             return WEBCRAWLER_DB_CONN
         except mdb.OperationalError as e:
-            traceback.print_exc()
-            print "Hey, Sleep %s seconds cuz we can't connect MySQL..." % seconds
+            # traceback.print_exc()
+            print dt.now().strftime("%Y-%m-%d %H:%M:%S"), "Sleep %s seconds cuz we can't connect MySQL..." % seconds
         except Exception as e:
             traceback.print_exc()
-            print "Oh, Sleep %s cuz unknown connecting database error." % seconds
-        time.sleep(seconds)
+            print dt.now().strftime("%Y-%m-%d %H:%M:%S"), "Sleep %s cuz unknown connecting database error." % seconds
         attempt += 1
+        time.sleep(seconds)
     
 
 def write_topic_into_db(cursor, topic_info):
@@ -72,22 +73,24 @@ def write_topic_into_db(cursor, topic_info):
         is_existed = cursor.execute(may_existed_topic, (topic_date, topic_s_url, topic_kw))
         if not is_existed:
             cursor.execute(insert_new_topic, (topic_uri, topic_kw, topic_date, topic_s_url))
-        print "Write topic succeeded..."
+        print "$"*20, "Write topic succeeded..."
     except (mdb.ProgrammingError, mdb.OperationalError) as e:
         traceback.print_exc()
         is_succeed = False
         if 'MySQL server has gone away' in e.message:
-            return MYSQL_GONE_ERROR
+            print dt.now().strftime("%Y-%m-%d %H:%M:%S"), "MySQL server has gone away"
         elif 'Deadlock found when trying to get lock' in e.message:
-            print "Boy, You did not solve dead lock"
+            print dt.now().strftime("%Y-%m-%d %H:%M:%S"), "You did not solve dead lock"
+        elif 'Lost connection to MySQL server' in e.message:
+            print dt.now().strftime("%Y-%m-%d %H:%M:%S"), "Lost connection to MySQL server"
         elif e.args[0] in [1064, 1366]:
-            print "Hey Hey Hey, Wrong string"
+            print dt.now().strftime("%Y-%m-%d %H:%M:%S"), "Wrong Tpoic String"
         else:
-            print "Other Program or Operation Errors"
+            print dt.now().strftime("%Y-%m-%d %H:%M:%S"), "Other Program or Operation Errors"
     except Exception as e:
         traceback.print_exc()
         is_succeed = False
-        print "Write topic failed"
+        print dt.now().strftime("%Y-%m-%d %H:%M:%S"), "Write topic failed"
     return is_succeed
 
 
@@ -118,12 +121,6 @@ def write_article_into_db(cursor, article_info):
         VALUES (%s, %s, %s, %s, %s, %s)
     """
     try:
-        # Soft-remove old relation and insert new relation
-        # prevent same article url from multiple searches
-        # cursor.execute(select_relation, (search_url, article_url))
-        # relation_to_update = cursor.fetchone()
-        # if relation_to_update:  # low prob of executing
-        #     cursor.execute(update_relation, (relation_to_update[0], ))
         cursor.execute(insert_new_relation, (search_url, createdate, article_url))
         # conn.commit() # save relation no matter the article is correct or not
         # No need to set is_up2date, cuz temp wx url would be deprecated automatically. T^T
@@ -133,23 +130,25 @@ def write_article_into_db(cursor, article_info):
             # Adjust whether insert new article
             cursor.execute(insert_new_article, (article_url, createdate, article_url,
                 article_text, num_of_read, num_of_praise))
-        print "Write article succeeded..."
+        print "$"*20, "Write article succeeded..."
 
     except (mdb.ProgrammingError, mdb.OperationalError) as e:
         traceback.print_exc()
         is_succeed = False
         if 'MySQL server has gone away' in e.message:
-            return MYSQL_GONE_ERROR
+            print dt.now().strftime("%Y-%m-%d %H:%M:%S"), "MySQL server has gone away"
         elif 'Deadlock found when trying to get lock' in e.message:
-            print "Boy, You did not solve dead lock"
+            print dt.now().strftime("%Y-%m-%d %H:%M:%S"), "You did not solve dead lock"
+        elif 'Lost connection to MySQL server' in e.message:
+            print dt.now().strftime("%Y-%m-%d %H:%M:%S"), "Lost connection to MySQL server"
         elif e.args[0] in [1064, 1366]:
-            print "Hey Hey Hey, Wrong string"
+            print dt.now().strftime("%Y-%m-%d %H:%M:%S"), "Wrong Article string"
         else:
-            print "Other Program or Operation Errors"
+            print dt.now().strftime("%Y-%m-%d %H:%M:%S"), "Other Program or Operation Errors"
     except Exception as e:
         traceback.print_exc()
         is_succeed = False
-        print "Write article Failed..."
+        print dt.now().strftime("%Y-%m-%d %H:%M:%S"), "Write article Failed..."
     return is_succeed
 
 def read_topics_from_db(cursor):
@@ -160,17 +159,17 @@ def read_topics_from_db(cursor):
     try:
         # read search keywords from table topicinfo
         cursor.execute("""
-            SELECT id, title FROM topicinfo T
-            WHERE theme LIKE '新浪微博_热门话题%'
-            AND createdate LIKE '%2016-11-%'
-        """)
+            SELECT id, title FROM topicinfo
+            WHERE STR_TO_DATE(createdate , '%Y-%m-%d %H:%i:%s') > '2016-11-04'
+            AND STR_TO_DATE(createdate, '%Y-%m-%d %H:%i:%s') < '2016-11-09'
+        """)  # >_< , include >, exclude <
         topicinfo_res = cursor.fetchall()
         for res in topicinfo_res:
             todo_topic_list.append(res[1])
-        print "There are %d topics to process" % len(todo_topic_list)
+        print "$"*20, "There are %d topics to process" % len(todo_topic_list)
     except Exception as e:
         traceback.print_exc()
-        print "Unable read topic from database.."
+        print dt.now().strftime("%Y-%m-%d %H:%M:%S"), "Unable read topic from database.."
     return todo_topic_list
 
 
