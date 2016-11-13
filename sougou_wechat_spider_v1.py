@@ -1,6 +1,6 @@
 #coding=utf-8
-import sys, time
-from datetime import datetime as dt
+import sys, time, os, signal
+from datetime import datetime as dt, timedelta
 import MySQLdb as mdb
 # from Queue import Queue
 # from multiprocessing.dummy import Pool as MPool
@@ -101,16 +101,23 @@ def run_all_worker():
             write_article_proc.start()
 
         try:
+            seven_days_ago = (dt.today() - timedelta(6)).strftime("%Y-%m-%d")
             cp = mp.current_process()
             print dt.now().strftime("%Y-%m-%d %H:%M:%S"), "Run All Word Process %s's pid is %d" % (cp, cp.pid)
             conn = connect_database()
             if not conn:
                 return False
-            list_of_kw = read_topics_from_db(conn.cursor())
+            list_of_kw = read_topics_from_db(conn.cursor(), seven_days_ago)[-100:]
             wxurl_generator(list_of_kw, url_queue, topic_queue)
-            url_queue.join()
             topic_queue.join()
             article_queue.join()
+            url_queue.join()
+            if topic_queue.empty():
+                print "topic_queue is empty"
+            if article_queue.empty():
+                print "article queue is empty"
+            if url_queue.empty():
+                print "url queue is empty"
         except mdb.OperationalError as e:
             traceback.print_exc()
             print dt.now().strftime("%Y-%m-%d %H:%M:%S")
@@ -127,9 +134,11 @@ def run_all_worker():
 
 
 if __name__=="__main__":
+    # os.setpgrp()
     # cp = mp.current_process()
     # print dt.now().strftime("%Y-%m-%d %H:%M:%S"), "Main Process %s's pid is %d" % (cp, cp.pid)
     print "\n" + "Began Scraping time is : %s" % dt.now().strftime("%Y-%m-%d %H:%M:%S") + "\n"
     start = time.time()
     run_all_worker()
     print "*"*10, "Total Scrping Time Consumed : %d seconds" % (time.time() - start), "*"*10
+    # os.killpg(0, signal.SIGKILL) # kill all processes in my group

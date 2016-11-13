@@ -151,18 +151,19 @@ def write_article_into_db(cursor, article_info):
         print dt.now().strftime("%Y-%m-%d %H:%M:%S"), "Write article Failed..."
     return is_succeed
 
-def read_topics_from_db(cursor):
+def read_topics_from_db(cursor, start_date):
     """
     Read unchecked topics from database, return list of topics
     """
+    select_topic = """
+        SELECT id, title FROM topicinfo T
+        WHERE theme LIKE '新浪微博_热门话题%'
+        AND STR_TO_DATE(createdate , '%Y-%m-%d %H:%i:%s') > {}
+    """.format(start_date)
     todo_topic_list = []
     try:
         # read search keywords from table topicinfo
-        cursor.execute("""
-            SELECT id, title FROM topicinfo
-            WHERE STR_TO_DATE(createdate , '%Y-%m-%d %H:%i:%s') > '2016-11-06'
-            AND STR_TO_DATE(createdate, '%Y-%m-%d %H:%i:%s') < '2016-11-09'
-        """)  # >_< , include >, exclude <
+        cursor.execute(select_topic)  # >_< , include >, exclude <
         topicinfo_res = cursor.fetchall()
         for res in topicinfo_res:
             todo_topic_list.append(res[1])
@@ -192,6 +193,14 @@ WEBCRAWLER_DB_CONN = mdb.connect(
             db="webcrawler",
             charset="utf8"
         )
+SELECT tt.createdate, wt.search_keyword
+FROM topicinfo tt, wechatsearchtopic wt
+WHERE tt.title=wt.search_keyword 
+AND STR_TO_DATE(tt.createdate , '%Y-%m-%d %H:%i:%s') > '2016-11-06'
+AND STR_TO_DATE(tt.createdate , '%Y-%m-%d %H:%i:%s') < '2016-11-13'
+AND wt.is_up2date='Y'
+AND wt.search_url NOT IN (
+SELECT search_url FROM wechatsearcharticlerelation)
 select_relation = 
         SELECT id FROM wechatsearcharticlerelation
         WHERE search_url=%s AND article_url=%s

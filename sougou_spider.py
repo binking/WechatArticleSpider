@@ -40,13 +40,16 @@ def parse_sougou_results(keyword, num_tries=3, wait_time=10):
     wx_article_urls = []
     proxy = gen_abuyun_proxy()
     err_no = SUCCESSED; err_msg = "Successed"; data = {}
-    for attempt in range(1, num_tries):
+    for attempt in range(1, num_tries+1):
         try:
             # url = QUERY_URL.format(kw=urllib.quote(keyword))
             url = QUERY_URL.format(kw=keyword)
             r =requests.get(url, proxies=proxy, timeout=wait_time)
             parser = bs(r.text, "html.parser")
-            # import ipdb; ipdb.set_trace()
+            if len(parser.find_all()) < 2:
+                print "Dammit, let's sleep %d seonds, cuz Sogou send wrong message to you..." % 3*attempt
+                handle_sleep(3*attempt)
+                continue
             for a_tag in parser.find_all("a", {
                 "id": re.compile(r"sogou.*title"), 
                 "href": re.compile("http://mp.weixin.qq.com*")
@@ -56,10 +59,6 @@ def parse_sougou_results(keyword, num_tries=3, wait_time=10):
             data = { "createdate": dt.now().strftime("%Y-%m-%d %H:%M:%S"), 
                       "uri": url, "search_url": url, 
                       "search_keyword": keyword, "urls": wx_article_urls}
-            if not wx_article_urls:
-                print url, "has really no urls? Need to read it again ..."
-                handle_sleep(3*attempt)
-                continue
             break # success and jump out of loop
         except Timeout as e:
             # traceback.print_exc()
