@@ -107,17 +107,11 @@ def run_all_worker():
             conn = connect_database()
             if not conn:
                 return False
-            list_of_kw = read_topics_from_db(conn.cursor(), seven_days_ago)[-100:]
+            list_of_kw = read_topics_from_db(conn.cursor(), seven_days_ago)[-50:]
             wxurl_generator(list_of_kw, url_queue, topic_queue)
             topic_queue.join()
             article_queue.join()
             url_queue.join()
-            if topic_queue.empty():
-                print "topic_queue is empty"
-            if article_queue.empty():
-                print "article queue is empty"
-            if url_queue.empty():
-                print "url queue is empty"
         except mdb.OperationalError as e:
             traceback.print_exc()
             print dt.now().strftime("%Y-%m-%d %H:%M:%S")

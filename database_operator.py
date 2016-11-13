@@ -29,7 +29,8 @@ def connect_database():
                 user=MYSQL_SERVER_USER, 
                 passwd=MYSQL_SERVER_PASS, 
                 db=MYSQL_SERVER_BASE,
-                charset=MYSQL_SERVER_CSET
+                charset=MYSQL_SERVER_CSET,
+                connect_timeout=20
             )
             return WEBCRAWLER_DB_CONN
         except mdb.OperationalError as e:
