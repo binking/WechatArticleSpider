@@ -32,7 +32,7 @@ def connect_database():
                 charset=MYSQL_SERVER_CSET,
                 connect_timeout=20
             )
-            WEBCRAWLER_DB_CONN.ping(True)
+            # WEBCRAWLER_DB_CONN.ping(True)
             return WEBCRAWLER_DB_CONN
         except mdb.OperationalError as e:
             # traceback.print_exc()
