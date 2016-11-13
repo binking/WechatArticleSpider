@@ -32,6 +32,7 @@ def connect_database():
                 charset=MYSQL_SERVER_CSET,
                 connect_timeout=20
             )
+            WEBCRAWLER_DB_CONN.ping(True)
             return WEBCRAWLER_DB_CONN
         except mdb.OperationalError as e:
             # traceback.print_exc()
@@ -156,10 +157,11 @@ def read_topics_from_db(cursor, start_date):
     """
     Read unchecked topics from database, return list of topics
     """
+    print "??"*40, start_date
     select_topic = """
         SELECT id, title FROM topicinfo T
         WHERE theme LIKE '新浪微博_热门话题%'
-        AND STR_TO_DATE(createdate , '%Y-%m-%d %H:%i:%s') > {}
+        AND STR_TO_DATE(createdate , '%Y-%m-%d %H:%i:%s') > '{}'
     """.format(start_date)
     todo_topic_list = []
     try:

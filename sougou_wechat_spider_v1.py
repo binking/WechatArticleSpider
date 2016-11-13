@@ -107,7 +107,7 @@ def run_all_worker():
             conn = connect_database()
             if not conn:
                 return False
-            list_of_kw = read_topics_from_db(conn.cursor(), seven_days_ago)[-50:]
+            list_of_kw = read_topics_from_db(conn.cursor(), seven_days_ago)
             wxurl_generator(list_of_kw, url_queue, topic_queue)
             topic_queue.join()
             article_queue.join()
@@ -128,11 +128,11 @@ def run_all_worker():
 
 
 if __name__=="__main__":
-    # os.setpgrp()
+    os.setpgrp()
     # cp = mp.current_process()
     # print dt.now().strftime("%Y-%m-%d %H:%M:%S"), "Main Process %s's pid is %d" % (cp, cp.pid)
     print "\n" + "Began Scraping time is : %s" % dt.now().strftime("%Y-%m-%d %H:%M:%S") + "\n"
     start = time.time()
     run_all_worker()
     print "*"*10, "Total Scrping Time Consumed : %d seconds" % (time.time() - start), "*"*10
-    # os.killpg(0, signal.SIGKILL) # kill all processes in my group
+    os.killpg(0, signal.SIGKILL) # kill all processes in my group
