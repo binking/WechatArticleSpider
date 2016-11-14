@@ -47,8 +47,8 @@ def parse_sougou_results(keyword, num_tries=3, wait_time=10):
             r =requests.get(url, proxies=proxy, timeout=wait_time)
             parser = bs(r.text, "html.parser")
             if len(parser.find_all()) < 2:
-                print "Dammit, let's sleep %d seonds, cuz Sogou send wrong message to you..." % 3*attempt
-                # handle_sleep(3*attempt)
+                print "Dammit, Sleep %d seonds, cuz Sogou send wrong message to you..." % 3*attempt
+                handle_sleep(3*attempt)
                 continue
             for a_tag in parser.find_all("a", {
                 "id": re.compile(r"sogou.*title"), 
@@ -62,15 +62,15 @@ def parse_sougou_results(keyword, num_tries=3, wait_time=10):
             break # success and jump out of loop
         except Timeout as e:
             # traceback.print_exc()
-            print dt.now().strftime("%Y-%m-%d %H:%M:%S"), 
+            print dt.now().strftime("%Y-%m-%d %H:%M:%S"), "Timeout", 
             handle_sleep(5*attempt)
         except ConnectionError as e:
             # traceback.print_exc()
-            print dt.now().strftime("%Y-%m-%d %H:%M:%S"), 
+            print dt.now().strftime("%Y-%m-%d %H:%M:%S"), "Connect error", 
             handle_sleep(5*attempt)
         except ProxyError as e:
             # traceback.print_exc()
-            print dt.now().strftime("%Y-%m-%d %H:%M:%S"), 
+            print dt.now().strftime("%Y-%m-%d %H:%M:%S"), "Proxy error",
             handle_proxy_error(5*attempt)
         except Exception as e:
             traceback.print_exc()

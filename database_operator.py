@@ -32,10 +32,8 @@ def connect_database():
                 charset=MYSQL_SERVER_CSET,
                 connect_timeout=20
             )
-            # WEBCRAWLER_DB_CONN.ping(True)
             return WEBCRAWLER_DB_CONN
         except mdb.OperationalError as e:
-            # traceback.print_exc()
             print dt.now().strftime("%Y-%m-%d %H:%M:%S"), "Sleep %s seconds cuz we can't connect MySQL..." % seconds
         except Exception as e:
             traceback.print_exc()
@@ -54,6 +52,7 @@ def write_topic_into_db(cursor, topic_info):
     topic_uri = topic_info.get('uri', '')
     topic_date = topic_info.get('createdate', '')
     topic_s_url = topic_info.get('search_url', '')
+    wechat_urls = topic_info.get('urls', [])
 
     deprecate_topic = """
         UPDATE wechatsearchtopic
@@ -70,8 +69,18 @@ def write_topic_into_db(cursor, topic_info):
         (uri, search_keyword, createdate, search_url)
         VALUES (%s, %s, %s, %s)
     """
+    insert_new_relation = """
+        INSERT INTO wechatsearcharticlerelation
+        (search_url, search_date, article_url)
+        VALUES (%s, %s, %s)
+    """
     try:
-        cursor.execute(deprecate_topic, (topic_kw, ))  # set N
+        if wechat_urls:
+            cursor.executemany(insert_new_relation, 
+                [(topic_s_url, topic_date, article_url) for article_url in wechat_urls])
+            print "$"*20, "Write relation succeeded..."
+        # search_date and search_url ensure newsest articles
+        cursor.execute(deprecate_topic, (topic_kw, ))
         is_existed = cursor.execute(may_existed_topic, (topic_date, topic_s_url, topic_kw))
         if not is_existed:
             cursor.execute(insert_new_topic, (topic_uri, topic_kw, topic_date, topic_s_url))
@@ -108,11 +117,6 @@ def write_article_into_db(cursor, article_info):
     num_of_praise = article_info.get('like_num', -1)
     num_of_read = article_info.get('read_num', -1)
 
-    insert_new_relation = """
-        INSERT INTO wechatsearcharticlerelation
-        (search_url, search_date, article_url)
-        VALUES (%s, %s, %s)
-    """
     select_article = """
         SELECT article_url FROM wechatarticle
         WHERE article_url=%s
@@ -123,10 +127,8 @@ def write_article_into_db(cursor, article_info):
         VALUES (%s, %s, %s, %s, %s, %s)
     """
     try:
-        cursor.execute(insert_new_relation, (search_url, createdate, article_url))
         # conn.commit() # save relation no matter the article is correct or not
         # No need to set is_up2date, cuz temp wx url would be deprecated automatically. T^T
-
         is_existed = cursor.execute(select_article, (article_url, ))
         if not is_existed:
             # Adjust whether insert new article
@@ -157,24 +159,24 @@ def read_topics_from_db(cursor, start_date):
     """
     Read unchecked topics from database, return list of topics
     """
-    print "??"*40, start_date
     select_topic = """
-        SELECT id, title FROM topicinfo T
+        SELECT title FROM topicinfo T
         WHERE theme LIKE '新浪微博_热门话题%'
         AND STR_TO_DATE(createdate , '%Y-%m-%d %H:%i:%s') > '{}'
+        ORDER BY id DESC
     """.format(start_date)
-    todo_topic_list = []
+    # todo_topic_list = []
     try:
         # read search keywords from table topicinfo
         cursor.execute(select_topic)  # >_< , include >, exclude <
         topicinfo_res = cursor.fetchall()
         for res in topicinfo_res:
-            todo_topic_list.append(res[1])
-        print "$"*20, "There are %d topics to process" % len(todo_topic_list)
+            yield res[0]
+        # print "$"*20, "There are %d topics to process" % len(todo_topic_list)
     except Exception as e:
         traceback.print_exc()
         print dt.now().strftime("%Y-%m-%d %H:%M:%S"), "Unable read topic from database.."
-    return todo_topic_list
+    # return todo_topic_list
 
 
 """

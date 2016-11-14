@@ -92,15 +92,15 @@ def get_like_vote_nums(url, data, proxy={}, num_tries=5, wait_time=10):
             handle_sleep(5*attempt)
         except Timeout as e:
             # traceback.print_exc()
-            print dt.now().strftime("%Y-%m-%d %H:%M:%S"), 
+            print dt.now().strftime("%Y-%m-%d %H:%M:%S"), "Timeout",
             handle_sleep(5*attempt)
         except ConnectionError as e:
             # traceback.print_exc()
-            print dt.now().strftime("%Y-%m-%d %H:%M:%S"), 
+            print dt.now().strftime("%Y-%m-%d %H:%M:%S"), "Connect error"
             handle_sleep(5*attempt)
         except ProxyError as e:
             # traceback.print_exc()
-            print dt.now().strftime("%Y-%m-%d %H:%M:%S"), 
+            print dt.now().strftime("%Y-%m-%d %H:%M:%S"), "Proxy error"
             handle_proxy_error(5*attempt)
         except Exception as e:
             traceback.print_exc()
@@ -132,15 +132,15 @@ def get_article_content(wx_url, proxy={}, num_tries=3, wait_time=5):
             break
         except Timeout as e:  # ConnectTimeout and ReadTimeout is its child class
             # traceback.print_exc()
-            print dt.now().strftime("%Y-%m-%d %H:%M:%S"),
+            print dt.now().strftime("%Y-%m-%d %H:%M:%S"), "Timeout",
             handle_sleep(5*attempt)
         except ConnectionError as e:
             # traceback.print_exc()
-            print dt.now().strftime("%Y-%m-%d %H:%M:%S"),
+            print dt.now().strftime("%Y-%m-%d %H:%M:%S"), "Connect error",
             handle_sleep(5*attempt)
         except ProxyError as e:
             # traceback.print_exc()
-            print dt.now().strftime("%Y-%m-%d %H:%M:%S"),
+            print dt.now().strftime("%Y-%m-%d %H:%M:%S"), "Proxy error",
             handle_proxy_error(5*attempt)
         except Exception as e:
             traceback.print_exc()
