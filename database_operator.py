@@ -119,7 +119,7 @@ def write_hotest_into_db(cursor, topic_info):
     top_title = topic_info.get('top_title', '')
     date_range = topic_info.get('date_range', '')
     hit_num = topic_info.get('hit_num', -1)
-    
+
     deprecate_topic = """
         UPDATE wechatsearchtopic
         SET is_up2date='N' 
@@ -223,9 +223,7 @@ def read_topics_from_db(cursor, start_date):
     """
     select_topic = """
         SELECT DISTINCT title FROM topicinfo T
-        WHERE theme LIKE '新浪微博_热门话题%'
-        AND STR_TO_DATE(createdate , '%Y-%m-%d %H:%i:%s') > '2016-11-01' limit 100
-        # ORDER BY id DESC limit 1000
+        WHERE theme LIKE '新浪微博_热门话题%' LIMIT 100
     """
     # .format(start_date)
     # todo_topic_list = []
@@ -243,6 +241,8 @@ def read_topics_from_db(cursor, start_date):
 
 
 """
+# AND STR_TO_DATE(createdate , '%Y-%m-%d %H:%i:%s') > '2016-11-01' limit 100
+        # ORDER BY id DESC limit 1000
 WEBCRAWLER_DB_CONN = mdb.connect(
             host = "192.168.1.103", 
             user="web", 
