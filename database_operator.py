@@ -163,7 +163,7 @@ def read_topics_from_db(cursor, start_date):
         SELECT title FROM topicinfo T
         WHERE theme LIKE '新浪微博_热门话题%'
         AND STR_TO_DATE(createdate , '%Y-%m-%d %H:%i:%s') > '{}'
-        ORDER BY id DESC
+        ORDER BY id DESC limit 10
     """.format(start_date)
     # todo_topic_list = []
     try:
