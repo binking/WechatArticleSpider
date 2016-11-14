@@ -105,6 +105,68 @@ def write_topic_into_db(cursor, topic_info):
     return is_succeed
 
 
+def write_hotest_into_db(cursor, topic_info):
+    """
+    Update two tables: wechatsearchtopic and wechatsearcharticlerelation
+    param topic_info(dict): createdate, uri, search_url, search_keyword, urls
+    """
+    is_succeed = True
+    topic_kw = topic_info.get('search_keyword', '')
+    topic_uri = topic_info.get('uri', '')
+    topic_date = topic_info.get('createdate', '')
+    topic_s_url = topic_info.get('search_url', '')
+    top_url = topic_info.get('top_url', '')
+    date_range = topicinfo.get('date_range', '')
+    hit_num = topicinfo.get('hit_num', -1)
+
+    deprecate_topic = """
+        UPDATE wechatsearchtopic
+        SET is_up2date='N' 
+        WHERE search_keyword=%s
+        AND date_range=%s
+    """
+    may_existed_topic = """
+        UPDATE wechatsearchtopic
+        SET is_up2date='Y' 
+        WHERE createdate=%s 
+        AND search_url=%s 
+        AND search_keyword=%s
+        AND date_range=%s
+    """
+    insert_new_topic = """
+        INSERT INTO wechatsearchtopic 
+        (uri, search_keyword, createdate, search_url, top_url, top_title, date_range, hit_num)
+        VALUES (%s, %s, %s, %s, %s, %s, %s, %d)
+    """
+    try:
+        # search_date and search_url ensure newsest articles
+        cursor.execute(deprecate_topic, (topic_kw, ))
+        is_existed = cursor.execute(may_existed_topic, 
+            (topic_date, topic_s_url, topic_kw, date_range))
+        if not is_existed:
+            cursor.execute(insert_new_topic, 
+                (topic_uri, topic_kw, topic_date, topic_s_url, top_url, top_title, date_range, hit_num))
+        print "$"*20, "Write topic succeeded..."
+    except (mdb.ProgrammingError, mdb.OperationalError) as e:
+        traceback.print_exc()
+        is_succeed = False
+        if 'MySQL server has gone away' in e.message:
+            print dt.now().strftime("%Y-%m-%d %H:%M:%S"), "MySQL server has gone away"
+        elif 'Deadlock found when trying to get lock' in e.message:
+            print dt.now().strftime("%Y-%m-%d %H:%M:%S"), "You did not solve dead lock"
+        elif 'Lost connection to MySQL server' in e.message:
+            print dt.now().strftime("%Y-%m-%d %H:%M:%S"), "Lost connection to MySQL server"
+        elif e.args[0] in [1064, 1366]:
+            print dt.now().strftime("%Y-%m-%d %H:%M:%S"), "Wrong Tpoic String"
+        else:
+            print dt.now().strftime("%Y-%m-%d %H:%M:%S"), "Other Program or Operation Errors"
+    except Exception as e:
+        traceback.print_exc()
+        is_succeed = False
+        print dt.now().strftime("%Y-%m-%d %H:%M:%S"), "Write topic failed"
+    return is_succeed
+
+
 def write_article_into_db(cursor, article_info):
     """
     param article_info(dict): 

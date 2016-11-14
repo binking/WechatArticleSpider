@@ -2,23 +2,20 @@
 import sys, time, os, signal, traceback
 from datetime import datetime as dt, timedelta
 import MySQLdb as mdb
-# from Queue import Queue
-# from multiprocessing.dummy import Pool as MPool
 import multiprocessing as mp
-from wetchat_spider import get_article_info
-from sougou_spider import parse_sougou_results
+from sougou_spider import get_sougou_top_result
 from abuyun_proxy import gen_abuyun_proxy, test_abuyun, get_current_ip
 from database_operator import (
     connect_database,
-    write_article_into_db, 
-    write_topic_into_db,
+    write_hotest_into_db,
     read_topics_from_db
 )
 reload(sys)
 sys.setdefaultencoding('utf-8')
 
+DATE_ERANGES = ['day', 'week', 'month']
 
-def wxurl_generator(topic_jobs, url_jobs, topic_results):
+def topic_info_generator(topic_jobs, topic_results):
     """
     Producer for urls and topics, Consummer for topics
     """
@@ -26,46 +23,14 @@ def wxurl_generator(topic_jobs, url_jobs, topic_results):
     while True:
         print dt.now().strftime("%Y-%m-%d %H:%M:%S"), "Generate Urls Process pid is %d" % (cp.pid)
         kw = topic_jobs.get()
-        sougou_result = parse_sougou_results(kw)
-        sougou_url = sougou_result['data'].get('search_url', )
-        topic_results.put(sougou_result['data'])
-        print "There are %d urls of %s" % (len(sougou_result['data']['urls']), kw)
-        for url in sougou_result['data']['urls']:
-            url_jobs.put("%s|%s|%s" % (kw, sougou_url, url))  # merge two url
+        for dr in DATE_ERANGES:
+            sougou_result = get_sougou_top_result(kw, dr)
+            # sougou_url = sougou_result['data'].get('search_url', )
+            topic_results.put(sougou_result['data'])
+            # for url in sougou_result['data']['urls']:
+            # url_jobs.put("%s|%s|%s" % (kw, sougou_url, url))  # merge two url
         topic_jobs.task_done()
-    print dt.now().strftime("%Y-%m-%d %H:%M:%S"), "Generate Urls Process %d finished" % (cp.pid)
-
-
-def wxarticle_generator(url_jobs, article_results):
-    """
-    Consummer for urls and Producer for articles
-    """
-    cp = mp.current_process()
-    abuyun_proxy = gen_abuyun_proxy()
-    while True:
-        print dt.now().strftime("%Y-%m-%d %H:%M:%S"), "Generate Article Process pid is %d" % (cp.pid)
-        merged_url = url_jobs.get()
-        word, s_url, w_url = merged_url.split("|")
-        wetchat_result = get_article_info(s_url, w_url, search_word=word, proxy=abuyun_proxy)
-        article_results.put(wetchat_result['data'])  # generate article data and put into queue
-        url_jobs.task_done()
-        time.sleep(0.02)
-    print dt.now().strftime("%Y-%m-%d %H:%M:%S"), "Generate Article Process %d finished" % (cp.pid)
-
-
-def article_db_writer(article_results):
-    """
-    Consummer for articles
-    """
-    cp = mp.current_process()
-    while True:
-        print dt.now().strftime("%Y-%m-%d %H:%M:%S"), "Write Article Process pid is %d" % (cp.pid)
-        with connect_database() as cursor:
-            # using try-with-recources, auto-commit
-            article_record = article_results.get()
-            write_status = write_article_into_db(cursor, article_record)
-            article_results.task_done()
-    print dt.now().strftime("%Y-%m-%d %H:%M:%S"), "Write Article Process %d finished" % (cp.pid)
+    
 
 def topic_db_writer(topic_results):
     """
@@ -76,10 +41,10 @@ def topic_db_writer(topic_results):
         print dt.now().strftime("%Y-%m-%d %H:%M:%S"), "Write Topics Process pid is %d" % (cp.pid)
         with connect_database() as cursor:
             topic_record = topic_results.get()
-            write_status = write_topic_into_db(cursor, topic_record)
+            # write_status = write_hotest_into_db(cursor, topic_record)
+            print topic_record
             topic_results.task_done()
-    print dt.now().strftime("%Y-%m-%d %H:%M:%S"), "Write Topics Process %d finished" % (cp.pid)
-
+    
 
 def create_processes(func, args, concurrency):
     for _ in range(concurrency):
@@ -111,13 +76,9 @@ def run_all_worker():
     try:
         # Producer is on !!!
         topic_jobs = mp.JoinableQueue()
-        url_jobs = mp.JoinableQueue()
         topic_results = mp.JoinableQueue()
-        article_results = mp.JoinableQueue()
-        create_processes(wxurl_generator, (topic_jobs, url_jobs, topic_results), 1)
-        create_processes(wxarticle_generator, (url_jobs, article_results), 6)
-        create_processes(topic_db_writer, (topic_results,), 1)
-        create_processes(article_db_writer, (article_results, ), 6)
+        create_processes(topic_info_generator, (topic_jobs, topic_results), 6)
+        create_processes(topic_db_writer, (topic_results,), 6)
 
         seven_days_ago = (dt.today() - timedelta(6)).strftime("%Y-%m-%d")
         cp = mp.current_process()
@@ -125,12 +86,9 @@ def run_all_worker():
         num_of_topics = add_topic_jobs(target=topic_jobs, start_date=seven_days_ago)
         print "<"*10, "There are %d topics to process" % num_of_topics, ">"*10
         topic_jobs.join()
-        url_jobs.join()
 
         print "+"*10, "topic_jobs' length is ", topic_jobs.qsize()
-        print "+"*10, "url_jobs' length is ", url_jobs.qsize()
         print "+"*10, "topic_results' length is ", topic_results.qsize()
-        print "+"*10, "article_results' length is ", article_results.qsize()
     except Exception as e:
         traceback.print_exc()
         print dt.now().strftime("%Y-%m-%d %H:%M:%S"), "Exception raise in Rn all Work"
