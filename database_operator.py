@@ -223,7 +223,7 @@ def read_topics_from_db(cursor, start_date):
     """
     select_topic = """
         SELECT DISTINCT title FROM topicinfo T
-        WHERE theme LIKE '新浪微博_热门话题%' LIMIT 100
+        WHERE theme LIKE '新浪微博_热门话题%'
     """
     # .format(start_date)
     # todo_topic_list = []
