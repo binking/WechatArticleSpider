@@ -125,15 +125,11 @@ def run_all_worker():
         num_of_topics = add_topic_jobs(target=topic_jobs, start_date=seven_days_ago)
         print "<"*10, "There are %d topics to process" % num_of_topics, ">"*10
         topic_jobs.join()
-        
-        if topic_jobs.empty():
-            print "+"*10, "topic_jobs is empty"
-        if url_jobs.empty():
-            print "+"*10, "url_jobs is empty"
-        if topic_results.empty():
-            print "+"*10, "topic_results is empty"
-        if article_results.empty():
-            print "+"*10, "article_results is empty"
+
+        print "+"*10, "topic_jobs' length is ", topic_jobs.qsize()
+        print "+"*10, "url_jobs' length is ", url_jobs.qsize()
+        print "+"*10, "topic_results' length is ", topic_results.qsize()
+        print "+"*10, "article_results' length is ", article_results.qsize()
     except Exception as e:
         traceback.print_exc()
         print dt.now().strftime("%Y-%m-%d %H:%M:%S"), "Exception raise in Rn all Work"
