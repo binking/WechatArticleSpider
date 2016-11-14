@@ -22,13 +22,12 @@ def topic_info_generator(topic_jobs, topic_results):
     cp = mp.current_process()
     while True:
         print dt.now().strftime("%Y-%m-%d %H:%M:%S"), "Generate Urls Process pid is %d" % (cp.pid)
-        kw = topic_jobs.get()
-        for dr in DATE_ERANGES:
-            sougou_result = get_sougou_top_result(kw, dr)
-            # sougou_url = sougou_result['data'].get('search_url', )
-            topic_results.put(sougou_result['data'])
-            # for url in sougou_result['data']['urls']:
-            # url_jobs.put("%s|%s|%s" % (kw, sougou_url, url))  # merge two url
+        kw, dr = topic_jobs.get()
+        sougou_result = get_sougou_top_result(kw, dr)
+        # sougou_url = sougou_result['data'].get('search_url', )
+        topic_results.put(sougou_result['data'])
+        # for url in sougou_result['data']['urls']:
+        # url_jobs.put("%s|%s|%s" % (kw, sougou_url, url))  # merge two url
         topic_jobs.task_done()
     
 
@@ -41,8 +40,7 @@ def topic_db_writer(topic_results):
         print dt.now().strftime("%Y-%m-%d %H:%M:%S"), "Write Topics Process pid is %d" % (cp.pid)
         with connect_database() as cursor:
             topic_record = topic_results.get()
-            # write_status = write_hotest_into_db(cursor, topic_record)
-            print topic_record
+            write_status = write_hotest_into_db(cursor, topic_record)
             topic_results.task_done()
     
 
@@ -62,7 +60,8 @@ def add_topic_jobs(target, start_date):
         list_of_kw = read_topics_from_db(conn.cursor(), start_date)
         for kw in list_of_kw:
             todo += 1
-            target.put(kw)
+            for dr in DATE_ERANGES:
+                target.put((kw, dr))
     except mdb.OperationalError as e:
             traceback.print_exc()
             print dt.now().strftime("%Y-%m-%d %H:%M:%S")
@@ -83,9 +82,10 @@ def run_all_worker():
         seven_days_ago = (dt.today() - timedelta(6)).strftime("%Y-%m-%d")
         cp = mp.current_process()
         print dt.now().strftime("%Y-%m-%d %H:%M:%S"), "Run All Works Process pid is %d" % (cp.pid)
-        num_of_topics = add_topic_jobs(target=topic_jobs, start_date=seven_days_ago)
+        num_of_topics = add_topic_jobs(target=topic_jobs, start_date='2016-11-14')
         print "<"*10, "There are %d topics to process" % num_of_topics, ">"*10
         topic_jobs.join()
+        topic_results.join()
 
         print "+"*10, "topic_jobs' length is ", topic_jobs.qsize()
         print "+"*10, "topic_results' length is ", topic_results.qsize()

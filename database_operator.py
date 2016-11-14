@@ -116,9 +116,10 @@ def write_hotest_into_db(cursor, topic_info):
     topic_date = topic_info.get('createdate', '')
     topic_s_url = topic_info.get('search_url', '')
     top_url = topic_info.get('top_url', '')
-    date_range = topicinfo.get('date_range', '')
-    hit_num = topicinfo.get('hit_num', -1)
-
+    top_title = topic_info.get('top_title', '')
+    date_range = topic_info.get('date_range', '')
+    hit_num = topic_info.get('hit_num', -1)
+    
     deprecate_topic = """
         UPDATE wechatsearchtopic
         SET is_up2date='N' 
@@ -136,16 +137,15 @@ def write_hotest_into_db(cursor, topic_info):
     insert_new_topic = """
         INSERT INTO wechatsearchtopic 
         (uri, search_keyword, createdate, search_url, top_url, top_title, date_range, hit_num)
-        VALUES (%s, %s, %s, %s, %s, %s, %s, %d)
-    """
+        VALUES ('%s', '%s', '%s', '%s', '%s', '%s', '%s', %d)
+    """ % (topic_uri, topic_kw, topic_date, topic_s_url, top_url, top_title, date_range, hit_num)
     try:
         # search_date and search_url ensure newsest articles
-        cursor.execute(deprecate_topic, (topic_kw, ))
+        cursor.execute(deprecate_topic, (topic_kw, date_range))
         is_existed = cursor.execute(may_existed_topic, 
             (topic_date, topic_s_url, topic_kw, date_range))
         if not is_existed:
-            cursor.execute(insert_new_topic, 
-                (topic_uri, topic_kw, topic_date, topic_s_url, top_url, top_title, date_range, hit_num))
+            cursor.execute(insert_new_topic)
         print "$"*20, "Write topic succeeded..."
     except (mdb.ProgrammingError, mdb.OperationalError) as e:
         traceback.print_exc()
@@ -222,11 +222,12 @@ def read_topics_from_db(cursor, start_date):
     Read unchecked topics from database, return list of topics
     """
     select_topic = """
-        SELECT title FROM topicinfo T
+        SELECT DISTINCT title FROM topicinfo T
         WHERE theme LIKE '新浪微博_热门话题%'
-        AND STR_TO_DATE(createdate , '%Y-%m-%d %H:%i:%s') > '{}'
-        ORDER BY id DESC limit 10
-    """.format(start_date)
+        AND STR_TO_DATE(createdate , '%Y-%m-%d %H:%i:%s') > '2016-11-01' limit 100
+        # ORDER BY id DESC limit 1000
+    """
+    # .format(start_date)
     # todo_topic_list = []
     try:
         # read search keywords from table topicinfo

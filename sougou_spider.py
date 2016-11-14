@@ -46,8 +46,8 @@ def parse_sougou_results(keyword, num_tries=3, wait_time=10):
     err_no = SUCCESSED; err_msg = "Successed"; data = {}
     for attempt in range(1, num_tries+1):
         try:
-            # url = QUERY_URL.format(kw=urllib.quote(keyword))
-            url = QUERY_URL_DICT['week'].format(kw=keyword)
+            url = QUERY_URL.format(kw=urllib.quote(keyword))
+            # url = QUERY_URL_DICT['week'].format(kw=keyword)
             r =requests.get(url, proxies=proxy, timeout=wait_time)
             parser = bs(r.text, "html.parser")
             if len(parser.find_all()) < 2:
@@ -86,7 +86,10 @@ def parse_sougou_results(keyword, num_tries=3, wait_time=10):
 
 
 def str_2_int(num_str):
-    return int(num_str.replace(',', ''))
+    try:
+        return int(num_str.replace(',', ''))
+    except:
+        return -1
 
 
 def get_sougou_top_result(keyword, date_range, num_tries=3, wait_time=10):
@@ -96,36 +99,43 @@ def get_sougou_top_result(keyword, date_range, num_tries=3, wait_time=10):
     return : {err_no: , err_msg: , data: 
         { uri: , createdate:, search_url:, }}
     """
-    if date_range not in QUERY_URL_DICT.keys():
-        print "Wrong dict"
-        return {}
     print "Sougou searching for ", keyword, "in 1 ", date_range
     proxy = gen_abuyun_proxy()
-    err_no = SUCCESSED; err_msg = "Successed"; data = {}
+    err_no = SUCCESSED; err_msg = "Successed"
+    # url = QUERY_URL_DICT[date_range].format(kw=urllib.quote(keyword))
+    url = QUERY_URL_DICT[date_range].format(kw=keyword)
+    print url
+    data = { "createdate": dt.now().strftime("%Y-%m-%d %H:%M:%S"), 
+              "uri": url, "search_url": url, 
+              "search_keyword": keyword,
+              "date_range": date_range,
+              "hit_num": -1,
+              "top_url": '',
+              "top_title": '',
+               }
     for attempt in range(1, num_tries+1):
         try:
-            # url = QUERY_URL_DICT[date_range].format(kw=urllib.quote(keyword))
-            url = QUERY_URL_DICT[date_range].format(kw=keyword)
             r =requests.get(url, proxies=proxy, timeout=wait_time)
             parser = bs(r.text, "html.parser")
             if len(parser.find_all()) < 2:
-                print "Dammit, Sleep %d seonds, cuz Sogou send wrong message to you..." % 3*attempt
-                handle_sleep(3*attempt)
+                print "Dammit, Sleep %d seonds, cuz Sogou send wrong message to you..." % (3**(attempt-1))
+                handle_sleep(3**(attempt-1))
                 continue
-            import ipdb;ipdb.set_trace()
-            resume_tag = parser.find("resnum", {"id": "scd_num"})
-            a_tag = parser.find("a", {
+            a_tags = parser.find_all("a", {
                 "id": re.compile(r"sogou.*title"), 
                 "href": re.compile("http://mp.weixin.qq.com*")
             })
-            if a_tag and resume_tag:
-                data = { "createdate": dt.now().strftime("%Y-%m-%d %H:%M:%S"), 
-                          "uri": url, "search_url": url, 
-                          "search_keyword": keyword,
-                          "date_range": date_range,
-                          "hit_num": str_2_int(resume_tag.text),
-                          "top_url": a_tag.get("href", ""),
-                          "top_title": a_tag.text }
+            if a_tags:
+                a_tag = a_tags[0]
+                data["top_url"] = a_tag.get("href", "")
+                data["top_title"] = a_tag.text
+                resume_tag = parser.find("resnum", {"id": "scd_num"})
+                if resume_tag:
+                    data["hit_num"] = str_2_int(resume_tag.text)
+                else:
+                    data["hit_num"] = len(a_tags)
+            else:  # no result
+                data["hit_num"] = 0
             break # success and jump out of loop
         except Timeout as e:
             # traceback.print_exc()
@@ -153,4 +163,4 @@ def test_parse_sougou_results():
     list_of_kw = ["特朗普", "45任总统", "暴走大事件", "王尼玛", "阴阳师"]
     for date_range in ['week', 'day', 'month']:
         # print parse_sougou_results(kw, abuyun_proxy)
-        get_sougou_top_result("特朗普", date_range)
+        print get_sougou_top_result("特朗普", date_range)
