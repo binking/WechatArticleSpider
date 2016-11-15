@@ -11,7 +11,11 @@ from requests.exceptions import (
     ConnectionError,
     ConnectTimeout,
 )
-from abuyun_proxy import gen_abuyun_proxy
+from abuyun_proxy import (
+    gen_abuyun_proxy, 
+    change_tunnel,
+    get_current_ip
+)
 reload(sys)
 sys.setdefaultencoding('utf-8')
 
@@ -88,11 +92,12 @@ def parse_sougou_results(keyword, num_tries=3, wait_time=10):
 def str_2_int(num_str):
     try:
         return int(num_str.replace(',', ''))
-    except:
+    except Exception as e:
+        traceback.print_exc()
         return -1
 
 
-def get_sougou_top_result(keyword, date_range, num_tries=3, wait_time=10):
+def get_sougou_top_result(keyword, date_range, num_tries=4, wait_time=10):
     """
     Given keyword, form the Sougou search url and parse the search results page
     param keywords:list of keywords
@@ -117,8 +122,10 @@ def get_sougou_top_result(keyword, date_range, num_tries=3, wait_time=10):
         try:
             r =requests.get(url, proxies=proxy, timeout=wait_time)
             parser = bs(r.text, "html.parser")
-            if len(parser.find_all()) < 2:
+            if len(parser.find_all()) < 20:
                 print "Dammit, Sleep %d seonds, cuz Sogou send wrong message to you..." % (3**(attempt-1))
+                change_tunnel()
+                print "After change IP: ", get_current_ip()
                 handle_sleep(3**(attempt-1))
                 continue
             a_tags = parser.find_all("a", {
@@ -134,8 +141,13 @@ def get_sougou_top_result(keyword, date_range, num_tries=3, wait_time=10):
                     data["hit_num"] = str_2_int(resume_tag.text)
                 else:
                     data["hit_num"] = len(a_tags)
-            else:  # no result
+            elif len(a_tags)==0 and parser.find("div", {"class": "no-sosuo"}):
+                # really no result
                 data["hit_num"] = 0
+            else:  # no result
+                with open('%s_%s.html' % (dt.now(), keyword), 'w') as fw:
+                    # null_parser = BS(open('2016-11-15 16:11:06.167554_朴施妍1114生日快乐.html', 'r').read(), "html.parser")
+                    print >>fw, r.text  # save the unknow html
             break # success and jump out of loop
         except Timeout as e:
             # traceback.print_exc()

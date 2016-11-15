@@ -1,5 +1,6 @@
 # Result log
 log/
+*.html
 # test files
 test*.py
 *.sh

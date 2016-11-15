@@ -4,7 +4,6 @@ from datetime import datetime as dt, timedelta
 import MySQLdb as mdb
 import multiprocessing as mp
 from sougou_spider import get_sougou_top_result
-from abuyun_proxy import gen_abuyun_proxy, test_abuyun, get_current_ip
 from database_operator import (
     connect_database,
     write_hotest_into_db,
