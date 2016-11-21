@@ -7,8 +7,9 @@ reload(sys)
 sys.setdefaultencoding('utf-8')
 
 MYSQL_GONE_ERROR = -100
-MYSQL_SERVER_HOST = "123.206.64.22"
+# MYSQL_SERVER_HOST = "123.206.64.22"
 # MYSQL_SERVER_HOST = "192.168.1.103"
+MYSQL_SERVER_HOST = "10.66.110.147"
 MYSQL_SERVER_PASS = "Crawler20161231"
 # MYSQL_SERVER_PASS = "Crawler@test1"
 MYSQL_SERVER_USER = 'web'
@@ -224,6 +225,7 @@ def read_topics_from_db(cursor, start_date):
     select_topic = """
         SELECT DISTINCT title FROM topicinfo T
         WHERE theme LIKE '新浪微博_热门话题%'
+        AND createdate > '2016-11-14'
     """
     # .format(start_date)
     # todo_topic_list = []
