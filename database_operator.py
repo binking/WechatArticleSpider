@@ -224,10 +224,9 @@ def read_topics_from_db(cursor, start_date):
     """
     select_topic = """
         SELECT DISTINCT title FROM topicinfo T
-        WHERE theme LIKE '新浪微博_热门话题%'
-        AND createdate > '2016-11-14'
-    """
-    # .format(start_date)
+        -- WHERE theme LIKE '新浪微博_热门话题%'
+        where createdate > '{}'
+    """.format(start_date)
     # todo_topic_list = []
     try:
         # read search keywords from table topicinfo
