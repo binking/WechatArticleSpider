@@ -110,8 +110,7 @@ def get_sougou_top_result(keyword, date_range, num_tries=4, wait_time=10):
         { uri: , createdate:, search_url:, }}
     """
     print "Sougou searching for ", keyword, "in 1 ", date_range
-    # proxy = gen_abuyun_proxy()
-    proxy = {}
+    proxy = gen_abuyun_proxy()
     err_no = SUCCESSED; err_msg = "Successed"
     # url = QUERY_URL_DICT[date_range].format(kw=urllib.quote(keyword))
     url = QUERY_URL_DICT[date_range].format(kw=keyword)
