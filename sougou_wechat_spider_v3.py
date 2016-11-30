@@ -1,5 +1,9 @@
 #coding=utf-8
-import sys, time, os, signal, traceback
+import sys
+import time
+import os
+import argparse
+import traceback
 from datetime import datetime as dt, timedelta
 import MySQLdb as mdb
 import multiprocessing as mp
@@ -50,13 +54,13 @@ def create_processes(func, args, concurrency):
         sub_proc.start()
 
 
-def add_topic_jobs(target, start_date):
+def add_topic_jobs(target, start_date, end_date, interval):
     todo = 0
     try:
         conn = connect_database()
         if not conn:
             return False
-        list_of_kw = read_topics_from_db(conn.cursor(), start_date)
+        list_of_kw = read_topics_from_db(conn.cursor(), start_date, end_date, interval)
         for kw in list_of_kw:
             todo += 1
             for dr in DATE_ERANGES:
@@ -70,18 +74,17 @@ def add_topic_jobs(target, start_date):
         conn.close()
         return todo
 
-def run_all_worker():
+def run_all_worker(start_date, end_date, interval):
     try:
         # Producer is on !!!
         topic_jobs = mp.JoinableQueue()
         topic_results = mp.JoinableQueue()
         create_processes(topic_info_generator, (topic_jobs, topic_results), 6)
         create_processes(topic_db_writer, (topic_results,), 6)
-
-        seven_days_ago = (dt.today() - timedelta(6)).strftime("%Y-%m-%d")
         cp = mp.current_process()
         print dt.now().strftime("%Y-%m-%d %H:%M:%S"), "Run All Works Process pid is %d" % (cp.pid)
-        num_of_topics = add_topic_jobs(target=topic_jobs, start_date='2016-11-14')
+        num_of_topics = add_topic_jobs(target=topic_jobs,
+            start_date=start_date, end_date=end_date, interval=interval)
         print "<"*10, "There are %d topics to process" % num_of_topics, ">"*10
         topic_jobs.join()
         topic_results.join()
@@ -98,5 +101,15 @@ def run_all_worker():
 if __name__=="__main__":
     print "\n" + "Began Scraping time is : %s" % dt.now().strftime("%Y-%m-%d %H:%M:%S") + "\n"
     start = time.time()
-    run_all_worker()
+    parser = argparse.ArgumentParser(description='Select date interval to update topics.')
+    parser.add_argument('--from', dest='start', help='start date')
+    parser.add_argument('--to', dest='end', help='end date')
+    parser.add_argument('--inter', dest='interval', type=int, help='default from 7 days ago')
+    args = parser.parse_args()
+    run_all_worker(start_date=args.start, end_date=args.end, interval=args.interval)
     print "*"*10, "Total Scrping Time Consumed : %d seconds" % (time.time() - start), "*"*10
+
+
+
+# get list of integers
+parser.add_argument("-l", dest="pmd_ad_ids", nargs='+', type=int, help="Input list of ids of ads, default check all urls...")
