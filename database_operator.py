@@ -18,12 +18,12 @@ OUTER_MYSQL = {
 }
 QCLOUD_MYSQL = {
     'host': '10.66.110.147',
-    'port': 3306, 
+    'port': 3306,
     'db': 'webcrawler',
     'user': 'web',
     'passwd': 'Crawler20161231',
     'charset': 'utf8',
-    'connect_timeout': 20, 
+    'connect_timeout': 20,
 }
 
 
