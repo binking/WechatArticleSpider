@@ -7,14 +7,25 @@ reload(sys)
 sys.setdefaultencoding('utf-8')
 
 MYSQL_GONE_ERROR = -100
-# MYSQL_SERVER_HOST = "123.206.64.22"
-# MYSQL_SERVER_HOST = "192.168.1.103"
-MYSQL_SERVER_HOST = "10.66.110.147"
-MYSQL_SERVER_PASS = "Crawler20161231"
-# MYSQL_SERVER_PASS = "Crawler@test1"
-MYSQL_SERVER_USER = 'web'
-MYSQL_SERVER_BASE = 'webcrawler'
-MYSQL_SERVER_CSET = 'utf8'
+OUTER_MYSQL = {
+    'host': '582af38b773d1.bj.cdb.myqcloud.com',
+    'port': 14811,
+    'db': 'webcrawler',
+    'user': 'web',
+    'passwd': "Crawler20161231",
+    'charset': 'utf8',
+    'connect_timeout': 20,
+}
+QCLOUD_MYSQL = {
+    'host': '10.66.110.147',
+    'port': '3306', 
+    'db': 'web',
+    'user': 'webcrawler',
+    'passwd': 'Crawler20161231',
+    'charset': 'utf8',
+    'connect_timeout': 20, 
+}
+
 
 def connect_database():
     """
@@ -23,16 +34,8 @@ def connect_database():
     attempt = 1
     while True:
         seconds = 3*attempt
-        print "@"*20, "Connecting database at %d-th time..." % attempt
         try:
-            WEBCRAWLER_DB_CONN = mdb.connect(
-                host=MYSQL_SERVER_HOST, 
-                user=MYSQL_SERVER_USER, 
-                passwd=MYSQL_SERVER_PASS, 
-                db=MYSQL_SERVER_BASE,
-                charset=MYSQL_SERVER_CSET,
-                connect_timeout=20
-            )
+            WEBCRAWLER_DB_CONN = mdb.connect(**OUTER_MYSQL)
             return WEBCRAWLER_DB_CONN
         except mdb.OperationalError as e:
             print dt.now().strftime("%Y-%m-%d %H:%M:%S"), "Sleep %s seconds cuz we can't connect MySQL..." % seconds
@@ -41,6 +44,7 @@ def connect_database():
             print dt.now().strftime("%Y-%m-%d %H:%M:%S"), "Sleep %s cuz unknown connecting database error." % seconds
         attempt += 1
         time.sleep(seconds)
+        print "@"*10, "Connecting database at %d-th time..." % attempt
     
 
 def write_topic_into_db(cursor, topic_info):
@@ -79,13 +83,13 @@ def write_topic_into_db(cursor, topic_info):
         if wechat_urls:
             cursor.executemany(insert_new_relation, 
                 [(topic_s_url, topic_date, article_url) for article_url in wechat_urls])
-            print "$"*20, "Write relation succeeded..."
+            print "$"*10, "Write relation succeeded..."
         # search_date and search_url ensure newsest articles
         cursor.execute(deprecate_topic, (topic_kw, ))
         is_existed = cursor.execute(may_existed_topic, (topic_date, topic_s_url, topic_kw))
         if not is_existed:
             cursor.execute(insert_new_topic, (topic_uri, topic_kw, topic_date, topic_s_url))
-        print "$"*20, "Write topic succeeded..."
+        print "$"*10, "Write topic succeeded..."
     except (mdb.ProgrammingError, mdb.OperationalError) as e:
         traceback.print_exc()
         is_succeed = False
@@ -147,15 +151,15 @@ def write_hotest_into_db(cursor, topic_info):
             (topic_date, topic_s_url, topic_kw, date_range))
         if not is_existed:
             cursor.execute(insert_new_topic)
-        print "$"*20, "Write topic succeeded..."
+        print "$"*10, "Write topic succeeded..."
     except (mdb.ProgrammingError, mdb.OperationalError) as e:
         traceback.print_exc()
         is_succeed = False
-        if 'MySQL server has gone away' in e.message:
+        if 'MySQL server has gone away' in str(e):
             print dt.now().strftime("%Y-%m-%d %H:%M:%S"), "MySQL server has gone away"
-        elif 'Deadlock found when trying to get lock' in e.message:
+        elif 'Deadlock found when trying to get lock' in str(e):
             print dt.now().strftime("%Y-%m-%d %H:%M:%S"), "You did not solve dead lock"
-        elif 'Lost connection to MySQL server' in e.message:
+        elif 'Lost connection to MySQL server' in str(e):
             print dt.now().strftime("%Y-%m-%d %H:%M:%S"), "Lost connection to MySQL server"
         elif e.args[0] in [1064, 1366]:
             print dt.now().strftime("%Y-%m-%d %H:%M:%S"), "Wrong Tpoic String"

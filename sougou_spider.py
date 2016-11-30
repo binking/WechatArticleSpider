@@ -50,12 +50,17 @@ def parse_sougou_results(keyword, num_tries=3, wait_time=10):
     err_no = SUCCESSED; err_msg = "Successed"; data = {}
     for attempt in range(1, num_tries+1):
         try:
-            url = QUERY_URL.format(kw=urllib.quote(keyword))
+            try:
+                kw = urllib.quote(keyword.encode('utf8'))
+            except (UnicodeEncodeError, KeyError) as e:
+                print "Quoting Chinese keyword %s to url string FAILED" % keyword
+                kw = keyword
+            url = QUERY_URL.format(kw=kw)
             # url = QUERY_URL_DICT['week'].format(kw=keyword)
             r =requests.get(url, proxies=proxy, timeout=wait_time)
             parser = bs(r.text, "html.parser")
             if len(parser.find_all()) < 2:
-                print "Dammit, Sleep %d seonds, cuz Sogou send wrong message to you..." % 3*attempt
+                print "Dammit, Sleep %d seonds, cuz Sogou send wrong message to you..." % (3*attempt)
                 handle_sleep(3*attempt)
                 continue
             for a_tag in parser.find_all("a", {
@@ -105,7 +110,8 @@ def get_sougou_top_result(keyword, date_range, num_tries=4, wait_time=10):
         { uri: , createdate:, search_url:, }}
     """
     print "Sougou searching for ", keyword, "in 1 ", date_range
-    proxy = gen_abuyun_proxy()
+    # proxy = gen_abuyun_proxy()
+    proxy = {}
     err_no = SUCCESSED; err_msg = "Successed"
     # url = QUERY_URL_DICT[date_range].format(kw=urllib.quote(keyword))
     url = QUERY_URL_DICT[date_range].format(kw=keyword)
@@ -123,9 +129,8 @@ def get_sougou_top_result(keyword, date_range, num_tries=4, wait_time=10):
             r =requests.get(url, proxies=proxy, timeout=wait_time)
             parser = bs(r.text, "html.parser")
             if len(parser.find_all()) < 20:
-                print "Dammit, Sleep %d seonds, cuz Sogou send wrong message to you..." % (3**(attempt-1))
                 change_tunnel()
-                print "After change IP: ", get_current_ip()
+                print "Dammit, Sleep %d seonds, and change IP to %s" % (3**(attempt-1), get_current_ip())
                 handle_sleep(3**(attempt-1))
                 continue
             a_tags = parser.find_all("a", {
@@ -144,10 +149,12 @@ def get_sougou_top_result(keyword, date_range, num_tries=4, wait_time=10):
             elif len(a_tags)==0 and parser.find("div", {"class": "no-sosuo"}):
                 # really no result
                 data["hit_num"] = 0
+            elif parser.find('div', {'id': 'noresult_part1_container'}):
+                data['hit_num'] = 0
             else:  # no result
-                with open('%s_%s.html' % (dt.now(), keyword), 'w') as fw:
+                with open('%s_%s.html' % (dt.now().strftime('%Y-%m-%d-%H:%M:%S'), keyword.encode('utf8')), 'w') as fw:
                     # null_parser = BS(open('2016-11-15 16:11:06.167554_朴施妍1114生日快乐.html', 'r').read(), "html.parser")
-                    print >>fw, r.text  # save the unknow html
+                    print >>fw, r.text.encode('utf8')  # save the unknow html
             break # success and jump out of loop
         except Timeout as e:
             # traceback.print_exc()
