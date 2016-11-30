@@ -35,7 +35,7 @@ def connect_database():
     while True:
         seconds = 3*attempt
         try:
-            WEBCRAWLER_DB_CONN = mdb.connect(**OUTER_MYSQL)
+            WEBCRAWLER_DB_CONN = mdb.connect(**QCLOUD_MYSQL)
             return WEBCRAWLER_DB_CONN
         except mdb.OperationalError as e:
             print dt.now().strftime("%Y-%m-%d %H:%M:%S"), "Sleep %s seconds cuz we can't connect MySQL..." % seconds
