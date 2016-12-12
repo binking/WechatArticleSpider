@@ -128,7 +128,7 @@ def get_sougou_top_result(keyword, date_range, num_tries=4, wait_time=10):
             r =requests.get(url, proxies=proxy, timeout=wait_time)
             parser = bs(r.text, "html.parser")
             if len(parser.find_all()) < 20:
-                change_tunnel()
+                # change_tunnel()
                 print "Dammit, Sleep %d seonds, and change IP to %s" % (3**(attempt-1), get_current_ip())
                 handle_sleep(3**(attempt-1))
                 continue
